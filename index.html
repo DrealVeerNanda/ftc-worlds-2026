@@ -452,7 +452,7 @@ function renderTeamViews() {
           <div class="stat-box"><div class="stat-val">#${team.stats.rank}</div><div class="stat-lbl">Division Rank</div></div>
           <div class="stat-box"><div class="stat-val">${team.stats.rp.toFixed(2)}</div><div class="stat-lbl">Avg RP</div></div>
           <div class="stat-box"><div class="stat-val">${team.stats.record}</div><div class="stat-lbl">W-L-T</div></div>
-          <div class="stat-box"><div class="stat-val">${team.stats.opr.toFixed(1)}</div><div class="stat-lbl">Simulated OPR</div></div>
+          <div class="stat-box"><div class="stat-val">${team.stats.opr.toFixed(1)}</div><div class="stat-lbl">Live OPR</div></div>
         </div>
         <div class="stat-grid-bot">
           <div class="stat-box"><div class="stat-val">${team.stats.auto.toFixed(1)}</div><div class="stat-lbl">Avg Auto</div></div>
@@ -460,7 +460,7 @@ function renderTeamViews() {
           <div class="stat-box"><div class="stat-val">${team.stats.endgame.toFixed(1)}</div><div class="stat-lbl">Avg Endgame</div></div>
         </div>
         <div class="sched-section">
-          <h4>Simulated Schedule & Predictions</h4>
+          <h4>Schedule & Predictions</h4>
     `;
     
     team.matches.forEach(m => {
@@ -481,7 +481,7 @@ function renderTeamViews() {
     
     viewHTML += `
         </div>
-        <p style="font-size:0.5rem; color:var(--muted); margin-top:15px; text-align:center;">*This is a simulated predictive analytics model based on historical OPR data.</p>
+        <p style="font-size:0.5rem; color:var(--muted); margin-top:15px; text-align:center;">*Win/Loss predictions are for upcoming matches only and are not reflected in the team's current record.</p>
       </div>
     `;
     
