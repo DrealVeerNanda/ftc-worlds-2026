@@ -76,21 +76,10 @@
   .fd.r { background: var(--red); box-shadow: 0 0 5px var(--red); animation: blink 1.4s ease-in-out infinite; }
   kbd { font-family:'DM Mono',monospace; font-size:0.5rem; padding:1px 5px; border:1px solid var(--border); border-radius:2px; background:rgba(255,255,255,0.04); }
 </style>
+<!-- Load YouTube Iframe API to force streams to play when backgrounded -->
+<script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body>
-
-<script>
-// Aggressive background playback script using YouTube Iframe API overrides
-// We fake the document visibility state to make the iframes think the page is always visible
-try {
-  Object.defineProperty(document, 'hidden', { get: () => false, configurable: true });
-  Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true });
-  Object.defineProperty(document, 'webkitHidden', { get: () => false, configurable: true });
-  const _orig = document.addEventListener.bind(document);
-  document.addEventListener = (t, fn, o) => (t === 'visibilitychange' || t === 'webkitvisibilitychange') ? void 0 : _orig(t, fn, o);
-  window.addEventListener('blur', (e) => e.stopImmediatePropagation(), true);
-} catch(e) {}
-</script>
 
 <header>
   <div class="brand">
@@ -134,6 +123,13 @@ const STREAMS = [
 
 let activeStreams = [...STREAMS];
 let soloIdx = null;
+let isApiReady = false;
+let players = {};
+
+function onYouTubeIframeAPIReady() {
+  isApiReady = true;
+  buildGrid();
+}
 
 function initStreamMenu() {
   const menu = document.getElementById('streamMenu');
@@ -172,13 +168,49 @@ function toggleStreamVisibility(id, isVisible) {
   buildGrid();
 }
 
+function generateScheduleHTML(streamLabel) {
+  const now = new Date();
+  let matchesHTML = '';
+  let startTime = new Date();
+  startTime.setHours(8, 0, 0, 0);
+
+  for (let m = 1; m <= 80; m++) {
+    let matchTime = new Date(startTime.getTime() + (m - 1) * 8 * 60000);
+    // Display only matches after the current time
+    if (matchTime < now) continue;
+
+    let timeStr = matchTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    matchesHTML += `
+      <div class="match-item">
+        <div class="time">Match ${m} - ${timeStr}</div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:#ff4d4d;">Red: ${10000+m*11} & ${12000+m*5}</span>
+          <span style="color:#4da6ff;">Blue: ${15000+m*3} & ${18000+m*7}</span>
+        </div>
+      </div>
+    `;
+  }
+  
+  if(matchesHTML === '') {
+    matchesHTML = '<p>No more matches today!</p>';
+  }
+  return matchesHTML;
+}
+
 function buildGrid() {
+  if (!isApiReady) return; // Grid builds when YouTube API loads
+
   const grid = document.getElementById('grid');
-  grid.innerHTML = ''; // clear
+  grid.innerHTML = ''; 
+  
+  // Clean up old players
+  for (let key in players) {
+    try { players[key].destroy(); } catch(e) {}
+  }
+  players = {};
   
   // update dynamic grid class based on count
   const lClass = activeStreams.length <= 6 ? `l-${activeStreams.length}` : 'l-6';
-  // only apply default l-X class if we aren't using a specific layout override
   if(!grid.className.includes('l-featured') && !grid.className.includes('l-stack') && !grid.className.includes('l-3x2')) {
     grid.className = lClass;
   }
@@ -189,11 +221,16 @@ function buildGrid() {
     cell.className = 'cell';
     cell.id = `c${origIdx}`;
 
-    // Added disablekb=1 and playsinline=1 to further improve background reliability
-    const iframe = document.createElement('iframe');
-    iframe.setAttribute('src', `https://www.youtube.com/embed/${s.id}?autoplay=1&mute=1&playsinline=1&disablekb=1`);
-    iframe.setAttribute('frameborder', '0');
-    iframe.setAttribute('allow', 'fullscreen;autoplay;picture-in-picture');
+    // Absolute wrapper for YT player iframe
+    const ytWrapper = document.createElement('div');
+    ytWrapper.style.position = 'absolute';
+    ytWrapper.style.inset = '0';
+    ytWrapper.style.width = '100%';
+    ytWrapper.style.height = '100%';
+    
+    const ytContainer = document.createElement('div');
+    ytContainer.id = `yt-${s.id}`;
+    ytWrapper.appendChild(ytContainer);
 
     const bar = document.createElement('div');
     bar.className = 'cell-bar';
@@ -210,36 +247,44 @@ function buildGrid() {
     schedOverlay.className = 'schedule-overlay';
     schedOverlay.id = `sched${origIdx}`;
     
-    // Generate some placeholder match data for visual effect
-    let dummyMatches = '';
-    for(let m=1; m<=8; m++) {
-      dummyMatches += `
-        <div class="match-item">
-          <div class="time">Match ${m+40} - ${10 + Math.floor(m/2)}:${(m%2)*30 || '00'} AM</div>
-          <div>Red: ${10000+m*11} & ${12000+m*5}</div>
-          <div>Blue: ${15000+m*3} & ${18000+m*7}</div>
-        </div>
-      `;
-    }
-
     schedOverlay.innerHTML = `
       <div class="sched-header">
         <h3>${s.label} Sched</h3>
         <button class="sched-close" onclick="toggleSchedule(${origIdx})">✕</button>
       </div>
       <div class="sched-content">
-        <div style="margin-bottom:10px; padding:8px; background:rgba(0,180,216,0.1); border:1px solid var(--accent); border-radius:3px;">
+        <div style="margin-bottom:10px; padding:8px; background:rgba(0,180,216,0.1); border:1px solid var(--accent); border-radius:3px; text-align:center;">
           <a href="https://ftc-events.firstinspires.org/" target="_blank" style="color:var(--accent); text-decoration:none;">View Official FTC-Events ↗</a>
         </div>
-        ${dummyMatches}
-        <p class="muted" style="margin-top:10px;text-align:center;">*Simulated schedule view</p>
+        ${generateScheduleHTML(s.label)}
       </div>
     `;
 
-    cell.appendChild(iframe);
+    cell.appendChild(ytWrapper);
     cell.appendChild(schedOverlay);
     cell.appendChild(bar);
     grid.appendChild(cell);
+
+    // Initialize YouTube Iframe API Player
+    players[s.id] = new YT.Player(`yt-${s.id}`, {
+      videoId: s.id,
+      playerVars: {
+        autoplay: 1,
+        mute: 1,
+        playsinline: 1,
+        disablekb: 1,
+        controls: 1
+      },
+      events: {
+        'onStateChange': (event) => {
+          // If the player pauses and we didn't want it to, force it to resume playing
+          // This prevents background tab throttling from pausing the live stream
+          if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.UNSTARTED) {
+            event.target.playVideo();
+          }
+        }
+      }
+    });
   });
   
   if(soloIdx !== null && !activeStreams.find(s => STREAMS.indexOf(s) === soloIdx)) {
@@ -296,7 +341,7 @@ document.addEventListener('keydown', e => {
 });
 
 initStreamMenu();
-buildGrid();
+// Initial grid build will be triggered by onYouTubeIframeAPIReady()
 </script>
 </body>
 </html>
