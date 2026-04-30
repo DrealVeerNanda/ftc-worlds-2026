@@ -253,13 +253,15 @@ function generateScheduleHTML(streamLabel) {
 
   for (let m = 1; m <= 80; m++) {
     let matchTime = new Date(startTime.getTime() + (m - 1) * 8 * 60000);
-    // Display only matches after the current time
-    if (matchTime < now) continue;
+    
+    let isPast = matchTime < now;
+    let opacityStyle = isPast ? 'opacity: 0.4; filter: grayscale(1);' : '';
+    let statusText = isPast ? ' <span style="font-size:0.5rem; border:1px solid var(--muted); padding:1px 3px; border-radius:2px; margin-left:5px;">COMPLETED</span>' : '';
 
     let timeStr = matchTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     matchesHTML += `
-      <div class="match-item">
-        <div class="time">Match ${m} - ${timeStr}</div>
+      <div class="match-item" style="${opacityStyle}">
+        <div class="time">Match ${m} - ${timeStr}${statusText}</div>
         <div style="display:flex; justify-content:space-between;">
           <span style="color:#ff4d4d;">Red: ${10000+m*11} & ${12000+m*5}</span>
           <span style="color:#4da6ff;">Blue: ${15000+m*3} & ${18000+m*7}</span>
