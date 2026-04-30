@@ -488,10 +488,10 @@ async function fetchLiveStats() {
     results.forEach((d, idx) => {
       if (!d) return;
       
-      let opr = d.quickStats?.tot?.value ? d.quickStats.tot.value.toFixed(1) : 0;
-      let auto = d.quickStats?.auto?.value ? d.quickStats.auto.value.toFixed(1) : 0;
-      let dc = d.quickStats?.dc?.value ? d.quickStats.dc.value.toFixed(1) : 0;
-      let eg = d.quickStats?.eg?.value ? d.quickStats.eg.value.toFixed(1) : 0;
+      let opr = d.quickStats?.tot?.value || 0;
+      let auto = d.quickStats?.auto?.value || 0;
+      let dc = d.quickStats?.dc?.value || 0;
+      let eg = d.quickStats?.eg?.value || 0;
       
       let pastMatches = [];
       let wins = 0, losses = 0, ties = 0;
