@@ -14,7 +14,7 @@
   }
   html, body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  header { display: flex; align-items: center; justify-content: space-between; padding: 7px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 7px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; z-index: 100; position: relative; }
   .brand { display: flex; align-items: center; gap: 10px; }
   .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 8px var(--red); animation: blink 1.4s ease-in-out infinite; }
   @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.35;} }
@@ -25,9 +25,23 @@
   .btn { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 10px; border-radius: 2px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
   .btn:hover { border-color: var(--accent); color: var(--accent); }
   .btn.active { border-color: var(--red); color: var(--red); background: rgba(232,0,61,0.07); }
-  .divider { width: 1px; height: 16px; background: var(--border); }
+  
+  .dropdown-wrapper { position: relative; }
+  .dropdown-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 5px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 100; min-width: 180px; }
+  .dropdown-menu.show { display: block; }
+  .stream-opt { display: flex; align-items: center; gap: 8px; font-size: 0.6rem; margin-bottom: 8px; color: var(--text); cursor: pointer; }
+  .stream-opt:last-child { margin-bottom: 0; }
+  .stream-opt input { cursor: pointer; }
 
-  #grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 2px; padding: 2px; overflow: hidden; background: #020408; }
+  #grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 2px; padding: 2px; overflow: hidden; background: #020408; transition: all 0.3s ease; }
+  /* Dynamic grid classes based on active streams */
+  #grid.l-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  #grid.l-2 { grid-template-columns: repeat(2, 1fr); grid-template-rows: 1fr; }
+  #grid.l-3 { grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr; }
+  #grid.l-4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+  #grid.l-5 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
+  #grid.l-6 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
+  
   #grid.l-featured { grid-template-columns: 2fr 1fr; grid-template-rows: repeat(3, 1fr); }
   #grid.l-featured .cell:first-child { grid-row: 1 / 4; }
   #grid.l-3x2 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); }
@@ -38,12 +52,23 @@
   .cell iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; display: block; }
 
   .cell-bar { position: absolute; bottom: 0; left: 0; right: 0; z-index: 5; padding: 20px 10px 7px; background: linear-gradient(to top, rgba(8,11,16,0.92) 0%, transparent 100%); display: flex; align-items: center; justify-content: space-between; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
-  .cell:hover .cell-bar, .cell.solo .cell-bar { opacity: 1; pointer-events: all; }
-  .bar-name { font-family: 'Bebas Neue', sans-serif; font-size: 0.9rem; letter-spacing: 0.1em; color: #fff; }
+  .cell:hover .cell-bar, .cell.solo .cell-bar, .cell:has(.schedule-overlay.open) .cell-bar { opacity: 1; pointer-events: all; }
+  .bar-name { font-family: 'Bebas Neue', sans-serif; font-size: 0.9rem; letter-spacing: 0.1em; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
   .bar-btns { display: flex; gap: 5px; }
-  .bar-btn { font-family: 'DM Mono', monospace; font-size: 0.55rem; padding: 3px 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(8,11,16,0.75); color: var(--text); border-radius: 2px; cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase; transition: all 0.12s; backdrop-filter: blur(4px); }
+  .bar-btn { font-family: 'DM Mono', monospace; font-size: 0.55rem; padding: 3px 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(8,11,16,0.75); color: var(--text); border-radius: 2px; cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase; transition: all 0.12s; backdrop-filter: blur(4px); text-decoration: none;}
   .bar-btn:hover { border-color: var(--red); color: var(--red); }
   .bar-btn.focused { border-color: var(--red); color: var(--red); }
+
+  /* Schedule Overlay */
+  .schedule-overlay { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; max-width: 80%; background: rgba(13, 18, 25, 0.95); border-left: 1px solid var(--border); z-index: 10; transform: translateX(100%); transition: transform 0.3s ease; display: flex; flex-direction: column; backdrop-filter: blur(10px); }
+  .schedule-overlay.open { transform: translateX(0); }
+  .sched-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.3); }
+  .sched-header h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; color: #fff; letter-spacing: 0.05em; }
+  .sched-close { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; }
+  .sched-close:hover { color: var(--red); }
+  .sched-content { padding: 10px; flex: 1; overflow-y: auto; font-size: 0.6rem; color: var(--text); }
+  .match-item { padding: 8px; border: 1px solid var(--border); margin-bottom: 5px; border-radius: 3px; background: rgba(255,255,255,0.02); }
+  .match-item .time { color: var(--accent); font-weight: bold; margin-bottom: 3px; }
 
   footer { padding: 4px 14px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 14px; font-size: 0.56rem; color: var(--muted); letter-spacing: 0.04em; flex-shrink: 0; }
   .fi { display: flex; align-items: center; gap: 5px; }
@@ -55,12 +80,15 @@
 <body>
 
 <script>
-// Block visibility API so YouTube doesn't pause on tab switch
+// Aggressive background playback script using YouTube Iframe API overrides
+// We fake the document visibility state to make the iframes think the page is always visible
 try {
   Object.defineProperty(document, 'hidden', { get: () => false, configurable: true });
   Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true });
+  Object.defineProperty(document, 'webkitHidden', { get: () => false, configurable: true });
   const _orig = document.addEventListener.bind(document);
-  document.addEventListener = (t, fn, o) => t === 'visibilitychange' ? void 0 : _orig(t, fn, o);
+  document.addEventListener = (t, fn, o) => (t === 'visibilitychange' || t === 'webkitvisibilitychange') ? void 0 : _orig(t, fn, o);
+  window.addEventListener('blur', (e) => e.stopImmediatePropagation(), true);
 } catch(e) {}
 </script>
 
@@ -73,17 +101,24 @@ try {
     </div>
   </div>
   <div class="controls">
-    <button class="btn active" onclick="setLayout('',this)">2×3</button>
+    <div class="dropdown-wrapper">
+      <button class="btn" id="streamToggleBtn" onclick="toggleStreamMenu()">📺 Streams ▾</button>
+      <div id="streamMenu" class="dropdown-menu">
+        <!-- populated by JS -->
+      </div>
+    </div>
+    <div class="divider" style="width:1px; height:16px; background:var(--border);"></div>
+    <button class="btn active" id="btn-grid" onclick="setLayout('',this)">Grid</button>
     <button class="btn" onclick="setLayout('l-featured',this)">Featured</button>
     <button class="btn" onclick="setLayout('l-3x2',this)">3×2</button>
     <button class="btn" onclick="setLayout('l-stack',this)">Stack</button>
   </div>
 </header>
 
-<div id="grid"></div>
+<div id="grid" class="l-6"></div>
 
 <footer>
-  <div class="fi"><div class="fd r"></div> 6 streams live · Houston TX</div>
+  <div class="fi"><div class="fd r"></div> <span id="activeCount">6</span> streams live · Houston TX</div>
   <div class="fi">Hover tile for controls &nbsp;·&nbsp; <kbd>1</kbd>–<kbd>6</kbd> focus &nbsp;·&nbsp; <kbd>Esc</kbd> exit</div>
 </footer>
 
@@ -97,41 +132,132 @@ const STREAMS = [
   { id: 'WoGngaj3ABk', label: 'Ross Division'       },
 ];
 
+let activeStreams = [...STREAMS];
 let soloIdx = null;
+
+function initStreamMenu() {
+  const menu = document.getElementById('streamMenu');
+  menu.innerHTML = '';
+  STREAMS.forEach((s, i) => {
+    const lbl = document.createElement('label');
+    lbl.className = 'stream-opt';
+    lbl.innerHTML = `<input type="checkbox" checked onchange="toggleStreamVisibility('${s.id}', this.checked)"> ${s.label}`;
+    menu.appendChild(lbl);
+  });
+}
+
+function toggleStreamMenu() {
+  document.getElementById('streamMenu').classList.toggle('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown-wrapper')) {
+    document.getElementById('streamMenu').classList.remove('show');
+  }
+});
+
+function toggleStreamVisibility(id, isVisible) {
+  if (isVisible) {
+    const stream = STREAMS.find(s => s.id === id);
+    if (stream && !activeStreams.find(s => s.id === id)) {
+      activeStreams.push(stream);
+      // Sort to maintain original order
+      activeStreams.sort((a, b) => STREAMS.indexOf(a) - STREAMS.indexOf(b));
+    }
+  } else {
+    activeStreams = activeStreams.filter(s => s.id !== id);
+  }
+  document.getElementById('activeCount').innerText = activeStreams.length;
+  buildGrid();
+}
 
 function buildGrid() {
   const grid = document.getElementById('grid');
-  STREAMS.forEach((s, i) => {
+  grid.innerHTML = ''; // clear
+  
+  // update dynamic grid class based on count
+  const lClass = activeStreams.length <= 6 ? `l-${activeStreams.length}` : 'l-6';
+  // only apply default l-X class if we aren't using a specific layout override
+  if(!grid.className.includes('l-featured') && !grid.className.includes('l-stack') && !grid.className.includes('l-3x2')) {
+    grid.className = lClass;
+  }
+
+  activeStreams.forEach((s, i) => {
+    const origIdx = STREAMS.indexOf(s);
     const cell = document.createElement('div');
     cell.className = 'cell';
-    cell.id = `c${i}`;
+    cell.id = `c${origIdx}`;
 
-    // Exact same format as multiwatch.net: www.youtube.com/embed with only autoplay+mute
-    // allow="fullscreen;autoplay" — no extra params that trigger stricter referrer checks
+    // Added disablekb=1 and playsinline=1 to further improve background reliability
     const iframe = document.createElement('iframe');
-    iframe.setAttribute('src', `https://www.youtube.com/embed/${s.id}?autoplay=1&mute=1`);
+    iframe.setAttribute('src', `https://www.youtube.com/embed/${s.id}?autoplay=1&mute=1&playsinline=1&disablekb=1`);
     iframe.setAttribute('frameborder', '0');
-    iframe.setAttribute('allow', 'fullscreen;autoplay');
+    iframe.setAttribute('allow', 'fullscreen;autoplay;picture-in-picture');
 
     const bar = document.createElement('div');
     bar.className = 'cell-bar';
     bar.innerHTML = `
       <span class="bar-name">${s.label}</span>
       <span class="bar-btns">
-        <button class="bar-btn" id="sbtn${i}" onclick="toggleSolo(${i})">⛶ Focus</button>
+        <button class="bar-btn" onclick="toggleSchedule(${origIdx})">📅 Sched</button>
+        <button class="bar-btn" id="sbtn${origIdx}" onclick="toggleSolo(${origIdx})">⛶ Focus</button>
         <a class="bar-btn" href="https://youtube.com/watch?v=${s.id}" target="_blank" rel="noopener">↗ YT</a>
       </span>
     `;
 
+    const schedOverlay = document.createElement('div');
+    schedOverlay.className = 'schedule-overlay';
+    schedOverlay.id = `sched${origIdx}`;
+    
+    // Generate some placeholder match data for visual effect
+    let dummyMatches = '';
+    for(let m=1; m<=8; m++) {
+      dummyMatches += `
+        <div class="match-item">
+          <div class="time">Match ${m+40} - ${10 + Math.floor(m/2)}:${(m%2)*30 || '00'} AM</div>
+          <div>Red: ${10000+m*11} & ${12000+m*5}</div>
+          <div>Blue: ${15000+m*3} & ${18000+m*7}</div>
+        </div>
+      `;
+    }
+
+    schedOverlay.innerHTML = `
+      <div class="sched-header">
+        <h3>${s.label} Sched</h3>
+        <button class="sched-close" onclick="toggleSchedule(${origIdx})">✕</button>
+      </div>
+      <div class="sched-content">
+        <div style="margin-bottom:10px; padding:8px; background:rgba(0,180,216,0.1); border:1px solid var(--accent); border-radius:3px;">
+          <a href="https://ftc-events.firstinspires.org/" target="_blank" style="color:var(--accent); text-decoration:none;">View Official FTC-Events ↗</a>
+        </div>
+        ${dummyMatches}
+        <p class="muted" style="margin-top:10px;text-align:center;">*Simulated schedule view</p>
+      </div>
+    `;
+
     cell.appendChild(iframe);
+    cell.appendChild(schedOverlay);
     cell.appendChild(bar);
     grid.appendChild(cell);
   });
+  
+  if(soloIdx !== null && !activeStreams.find(s => STREAMS.indexOf(s) === soloIdx)) {
+    // focused stream was removed
+    soloIdx = null; 
+  }
+}
+
+function toggleSchedule(idx) {
+  const overlay = document.getElementById(`sched${idx}`);
+  if (overlay) overlay.classList.toggle('open');
 }
 
 function toggleSolo(idx) {
   const cell = document.getElementById(`c${idx}`);
   const btn = document.getElementById(`sbtn${idx}`);
+  if (!cell) return;
+  
   if (soloIdx === idx) {
     cell.classList.remove('solo');
     if (btn) { btn.textContent = '⛶ Focus'; btn.classList.remove('focused'); }
@@ -149,17 +275,27 @@ function toggleSolo(idx) {
 }
 
 function setLayout(cls, btn) {
-  document.getElementById('grid').className = cls || '';
-  document.querySelectorAll('header .btn').forEach(b => b.classList.remove('active'));
+  const grid = document.getElementById('grid');
+  // if clearing layout, revert to default l-X
+  if (!cls) {
+    grid.className = activeStreams.length <= 6 ? `l-${activeStreams.length}` : 'l-6';
+  } else {
+    grid.className = cls;
+  }
+  document.querySelectorAll('.controls > button.btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && soloIdx !== null) toggleSolo(soloIdx);
   const n = parseInt(e.key);
-  if (n >= 1 && n <= 6) toggleSolo(n - 1);
+  if (n >= 1 && n <= 6) {
+    const s = STREAMS[n - 1];
+    if (activeStreams.includes(s)) toggleSolo(n - 1);
+  }
 });
 
+initStreamMenu();
 buildGrid();
 </script>
 </body>
