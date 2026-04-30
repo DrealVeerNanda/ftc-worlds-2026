@@ -549,7 +549,7 @@ async function fetchLiveStats() {
               time: "Past",
               isPast: true,
               result: result,
-              score: \`\${ourScore}-\${theirScore}\`,
+              score: `${ourScore}-${theirScore}`,
               opp1: opp1 || 'N/A',
               opp2: opp2 || 'N/A'
             });
@@ -563,7 +563,7 @@ async function fetchLiveStats() {
         TEAMS_DATA[idx].stats = {
           rank: TEAMS_DATA[idx].stats.rank, // Preserve dummy rank if API doesn't have it
           rp: TEAMS_DATA[idx].stats.rp,
-          record: \`\${wins}-\${losses}-\${ties}\`,
+          record: `${wins}-${losses}-${ties}`,
           opr: opr, auto: auto, teleop: dc, endgame: eg
         };
         
