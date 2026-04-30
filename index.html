@@ -4,88 +4,162 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FTC Worlds 2026 — Multiview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--red:#e8003d;--bg:#080b10;--surface:#0d1219;--border:#1c2530;--text:#d6e4f0;--muted:#4a6070;--accent:#00b4d8}
-html,body{background:var(--bg);color:var(--text);font-family:monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-header{display:flex;align-items:center;justify-content:space-between;padding:7px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-h1{font-size:1.2rem;letter-spacing:.08em;color:#fff}h1 span{color:var(--red)}
-.meta{font-size:.58rem;color:var(--muted);text-transform:uppercase;margin-top:1px}
-.controls{display:flex;gap:6px}
-.btn{font-size:.6rem;text-transform:uppercase;padding:5px 10px;border-radius:2px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
-.btn:hover{border-color:var(--accent);color:var(--accent)}
-.btn.active{border-color:var(--red);color:var(--red);background:rgba(232,0,61,.07)}
-#grid{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:2px;padding:2px;background:#020408}
-#grid.l-featured{grid-template-columns:2fr 1fr;grid-template-rows:repeat(3,1fr)}
-#grid.l-featured .cell:first-child{grid-row:1/4}
-#grid.l-3x2{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,1fr)}
-#grid.l-stack{grid-template-columns:1fr;grid-template-rows:repeat(6,1fr)}
-.cell{position:relative;overflow:hidden;background:#000;border:1px solid var(--border);border-radius:1px}
-.cell.solo{position:fixed!important;inset:44px 0 26px 0!important;z-index:50;border-color:var(--red)!important;border-radius:0}
-.cell iframe{position:absolute;inset:0;width:100%;height:100%;border:none;display:block}
-.cell-bar{position:absolute;bottom:0;left:0;right:0;z-index:5;padding:20px 10px 7px;background:linear-gradient(to top,rgba(8,11,16,.92) 0%,transparent 100%);display:flex;align-items:center;justify-content:space-between;opacity:0;transition:opacity .2s;pointer-events:none}
-.cell:hover .cell-bar,.cell.solo .cell-bar{opacity:1;pointer-events:all}
-.bar-name{font-size:.9rem;letter-spacing:.1em;color:#fff}
-.bar-btns{display:flex;gap:5px}
-.bar-btn{font-size:.55rem;padding:3px 8px;border:1px solid rgba(255,255,255,.2);background:rgba(8,11,16,.75);color:var(--text);border-radius:2px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;transition:all .12s;backdrop-filter:blur(4px);text-decoration:none}
-.bar-btn:hover{border-color:var(--red);color:var(--red)}
-.bar-btn.focused{border-color:var(--red);color:var(--red)}
-footer{padding:4px 14px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;gap:14px;font-size:.56rem;color:var(--muted);flex-shrink:0}
-.fi{display:flex;align-items:center;gap:5px}
-.fd{width:5px;height:5px;border-radius:50%;background:var(--red);box-shadow:0 0 5px var(--red)}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --red: #e8003d; --bg: #080b10; --surface: #0d1219;
+    --border: #1c2530; --text: #d6e4f0; --muted: #4a6070; --accent: #00b4d8;
+  }
+  html, body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 7px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 8px var(--red); animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  h1 { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.08em; color: #fff; }
+  h1 span { color: var(--red); }
+  .meta { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 1px; }
+  .controls { display: flex; gap: 6px; align-items: center; }
+  .btn { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 10px; border-radius: 2px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { border-color: var(--red); color: var(--red); background: rgba(232,0,61,0.07); }
+  .divider { width: 1px; height: 16px; background: var(--border); }
+
+  #grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 2px; padding: 2px; overflow: hidden; background: #020408; }
+  #grid.l-featured { grid-template-columns: 2fr 1fr; grid-template-rows: repeat(3, 1fr); }
+  #grid.l-featured .cell:first-child { grid-row: 1 / 4; }
+  #grid.l-3x2 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); }
+  #grid.l-stack { grid-template-columns: 1fr; grid-template-rows: repeat(6, 1fr); }
+
+  .cell { position: relative; overflow: hidden; background: #000; border: 1px solid var(--border); border-radius: 1px; }
+  .cell.solo { position: fixed !important; inset: 44px 0 26px 0 !important; z-index: 50; border-color: var(--red) !important; border-radius: 0; }
+  .cell iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; display: block; }
+
+  .cell-bar { position: absolute; bottom: 0; left: 0; right: 0; z-index: 5; padding: 20px 10px 7px; background: linear-gradient(to top, rgba(8,11,16,0.92) 0%, transparent 100%); display: flex; align-items: center; justify-content: space-between; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .cell:hover .cell-bar, .cell.solo .cell-bar { opacity: 1; pointer-events: all; }
+  .bar-name { font-family: 'Bebas Neue', sans-serif; font-size: 0.9rem; letter-spacing: 0.1em; color: #fff; }
+  .bar-btns { display: flex; gap: 5px; }
+  .bar-btn { font-family: 'DM Mono', monospace; font-size: 0.55rem; padding: 3px 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(8,11,16,0.75); color: var(--text); border-radius: 2px; cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase; transition: all 0.12s; backdrop-filter: blur(4px); }
+  .bar-btn:hover { border-color: var(--red); color: var(--red); }
+  .bar-btn.focused { border-color: var(--red); color: var(--red); }
+
+  footer { padding: 4px 14px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 14px; font-size: 0.56rem; color: var(--muted); letter-spacing: 0.04em; flex-shrink: 0; }
+  .fi { display: flex; align-items: center; gap: 5px; }
+  .fd { width: 5px; height: 5px; border-radius: 50%; }
+  .fd.r { background: var(--red); box-shadow: 0 0 5px var(--red); animation: blink 1.4s ease-in-out infinite; }
+  kbd { font-family:'DM Mono',monospace; font-size:0.5rem; padding:1px 5px; border:1px solid var(--border); border-radius:2px; background:rgba(255,255,255,0.04); }
 </style>
 </head>
 <body>
+
 <script>
-try{Object.defineProperty(document,'hidden',{get:()=>false,configurable:true});Object.defineProperty(document,'visibilityState',{get:()=>'visible',configurable:true});const _o=document.addEventListener.bind(document);document.addEventListener=(t,fn,o)=>t==='visibilitychange'?void 0:_o(t,fn,o)}catch(e){}
+// Block visibility API so YouTube doesn't pause on tab switch
+try {
+  Object.defineProperty(document, 'hidden', { get: () => false, configurable: true });
+  Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true });
+  const _orig = document.addEventListener.bind(document);
+  document.addEventListener = (t, fn, o) => t === 'visibilitychange' ? void 0 : _orig(t, fn, o);
+} catch(e) {}
 </script>
+
 <header>
-<div style="display:flex;align-items:center;gap:10px">
-<div style="width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red)"></div>
-<div><h1><span>FTC</span> WORLDS 2026 — MULTIVIEW</h1><div class="meta">FIRST Championship · Houston TX · Fri May 1 · Day 2 · All 6 Divisions</div></div>
-</div>
-<div class="controls">
-<button class="btn active" onclick="setLayout('',this)">2×3</button>
-<button class="btn" onclick="setLayout('l-featured',this)">Featured</button>
-<button class="btn" onclick="setLayout('l-3x2',this)">3×2</button>
-<button class="btn" onclick="setLayout('l-stack',this)">Stack</button>
-</div>
+  <div class="brand">
+    <div class="live-dot"></div>
+    <div>
+      <h1><span>FTC</span> WORLDS 2026 — MULTIVIEW</h1>
+      <div class="meta">FIRST Championship · Houston, TX · Thu Apr 30 · All 6 Divisions</div>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="btn active" onclick="setLayout('',this)">2×3</button>
+    <button class="btn" onclick="setLayout('l-featured',this)">Featured</button>
+    <button class="btn" onclick="setLayout('l-3x2',this)">3×2</button>
+    <button class="btn" onclick="setLayout('l-stack',this)">Stack</button>
+  </div>
 </header>
+
 <div id="grid"></div>
-<footer><div class="fi"><div class="fd"></div> 6 streams live · Day 2</div><div class="fi">Hover for controls · 1–6 focus · Esc exit</div></footer>
+
+<footer>
+  <div class="fi"><div class="fd r"></div> 6 streams live · Houston TX</div>
+  <div class="fi">Hover tile for controls &nbsp;·&nbsp; <kbd>1</kbd>–<kbd>6</kbd> focus &nbsp;·&nbsp; <kbd>Esc</kbd> exit</div>
+</footer>
+
 <script>
-const STREAMS=[
-{id:'ATn3vKK9Cac',label:'Edison Division'},
-{id:'U3-l-scDglY',label:'Franklin Division'},
-{id:'nNWYRvkSHvw',label:'Goodall Division'},
-{id:'C5hddvlYfKQ',label:'Jackson Division'},
-{id:'imScd0Dv9IA',label:'Lovelace Division'},
-{id:'ps5rsAdW4-Q',label:'Ross Division'},
+const STREAMS = [
+  { id: 'v_KlA02le9g', label: 'Edison Division'     },
+  { id: '76X4pB5eljY', label: 'Franklin Division'   },
+  { id: 'ZEzRZXUkgEI', label: 'Goodall Division'    },
+  { id: 'Yd5q_PokJ0Y', label: 'Jackson Division'    },
+  { id: 'KbMURIWFcMg', label: 'Lovelace Division'   },
+  { id: 'WoGngaj3ABk', label: 'Ross Division'       },
 ];
-let soloIdx=null;
-function buildGrid(){
-const grid=document.getElementById('grid');
-STREAMS.forEach((s,i)=>{
-const cell=document.createElement('div');
-cell.className='cell';cell.id='c'+i;
-const iframe=document.createElement('iframe');
-iframe.setAttribute('src','https://www.youtube.com/embed/'+s.id+'?autoplay=1&mute=1');
-iframe.setAttribute('frameborder','0');
-iframe.setAttribute('allow','fullscreen;autoplay');
-const bar=document.createElement('div');
-bar.className='cell-bar';
-bar.innerHTML='<span class="bar-name">'+s.label+'</span><span class="bar-btns"><button class="bar-btn" id="sbtn'+i+'" onclick="toggleSolo('+i+')">⛶ Focus</button><a class="bar-btn" href="https://youtube.com/watch?v='+s.id+'" target="_blank">↗ YT</a></span>';
-cell.appendChild(iframe);cell.appendChild(bar);grid.appendChild(cell);
+
+let soloIdx = null;
+
+function buildGrid() {
+  const grid = document.getElementById('grid');
+  STREAMS.forEach((s, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.id = `c${i}`;
+
+    // Exact same format as multiwatch.net: www.youtube.com/embed with only autoplay+mute
+    // allow="fullscreen;autoplay" — no extra params that trigger stricter referrer checks
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('src', `https://www.youtube.com/embed/${s.id}?autoplay=1&mute=1`);
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allow', 'fullscreen;autoplay');
+
+    const bar = document.createElement('div');
+    bar.className = 'cell-bar';
+    bar.innerHTML = `
+      <span class="bar-name">${s.label}</span>
+      <span class="bar-btns">
+        <button class="bar-btn" id="sbtn${i}" onclick="toggleSolo(${i})">⛶ Focus</button>
+        <a class="bar-btn" href="https://youtube.com/watch?v=${s.id}" target="_blank" rel="noopener">↗ YT</a>
+      </span>
+    `;
+
+    cell.appendChild(iframe);
+    cell.appendChild(bar);
+    grid.appendChild(cell);
+  });
+}
+
+function toggleSolo(idx) {
+  const cell = document.getElementById(`c${idx}`);
+  const btn = document.getElementById(`sbtn${idx}`);
+  if (soloIdx === idx) {
+    cell.classList.remove('solo');
+    if (btn) { btn.textContent = '⛶ Focus'; btn.classList.remove('focused'); }
+    soloIdx = null;
+  } else {
+    if (soloIdx !== null) {
+      document.getElementById(`c${soloIdx}`)?.classList.remove('solo');
+      const ob = document.getElementById(`sbtn${soloIdx}`);
+      if (ob) { ob.textContent = '⛶ Focus'; ob.classList.remove('focused'); }
+    }
+    cell.classList.add('solo');
+    if (btn) { btn.textContent = '✕ Exit'; btn.classList.add('focused'); }
+    soloIdx = idx;
+  }
+}
+
+function setLayout(cls, btn) {
+  document.getElementById('grid').className = cls || '';
+  document.querySelectorAll('header .btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && soloIdx !== null) toggleSolo(soloIdx);
+  const n = parseInt(e.key);
+  if (n >= 1 && n <= 6) toggleSolo(n - 1);
 });
-}
-function toggleSolo(idx){
-const cell=document.getElementById('c'+idx);
-const btn=document.getElementById('sbtn'+idx);
-if(soloIdx===idx){cell.classList.remove('solo');if(btn){btn.textContent='⛶ Focus';btn.classList.remove('focused');}soloIdx=null;}
-else{if(soloIdx!==null){document.getElementById('c'+soloIdx)?.classList.remove('solo');const ob=document.getElementById('sbtn'+soloIdx);if(ob){ob.textContent='⛶ Focus';ob.classList.remove('focused');}}cell.classList.add('solo');if(btn){btn.textContent='✕ Exit';btn.classList.add('focused');}soloIdx=idx;}
-}
-function setLayout(cls,btn){document.getElementById('grid').className=cls||'';document.querySelectorAll('header .btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&soloIdx!==null)toggleSolo(soloIdx);const n=parseInt(e.key);if(n>=1&&n<=6)toggleSolo(n-1);});
+
 buildGrid();
 </script>
 </body>
