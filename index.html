@@ -449,45 +449,25 @@ let isLoadingLiveStats = false;
 let hasLiveStats = false;
 
 async function fetchLiveStats() {
-  const query = `
-    query {
-      t18221: teamByNumber(number: 18221) {
-        name
-        quickStats(season: 2025) { tot { value } auto { value } dc { value } eg { value } }
-        matches(season: 2025) {
-          match {
-            hasBeenPlayed description
-            scores { ... on MatchScores2025 { red { totalPoints } blue { totalPoints } } }
-            teams { teamNumber alliance }
+  const teams = [18221, 16236, 9791];
+  
+  const fetchTeam = async (teamNum) => {
+    const query = `
+      query {
+        team: teamByNumber(number: ${teamNum}) {
+          name
+          quickStats(season: 2025) { tot { value } auto { value } dc { value } eg { value } }
+          matches(season: 2025) {
+            eventCode
+            match {
+              hasBeenPlayed description
+              scores { ... on MatchScores2025 { red { totalPoints } blue { totalPoints } } }
+              teams { teamNumber alliance }
+            }
           }
         }
       }
-      t16236: teamByNumber(number: 16236) {
-        name
-        quickStats(season: 2025) { tot { value } auto { value } dc { value } eg { value } }
-        matches(season: 2025) {
-          match {
-            hasBeenPlayed description
-            scores { ... on MatchScores2025 { red { totalPoints } blue { totalPoints } } }
-            teams { teamNumber alliance }
-          }
-        }
-      }
-      t9791: teamByNumber(number: 9791) {
-        name
-        quickStats(season: 2025) { tot { value } auto { value } dc { value } eg { value } }
-        matches(season: 2025) {
-          match {
-            hasBeenPlayed description
-            scores { ... on MatchScores2025 { red { totalPoints } blue { totalPoints } } }
-            teams { teamNumber alliance }
-          }
-        }
-      }
-    }
-  `;
-
-  try {
+    `;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
     const res = await fetch("https://api.ftcscout.org/graphql", {
@@ -497,82 +477,81 @@ async function fetchLiveStats() {
       signal: controller.signal
     });
     clearTimeout(timeoutId);
-    
-    if(!res.ok) throw new Error("FTC Scout API error");
+    if (!res.ok) throw new Error("FTC Scout API error");
     const { data } = await res.json();
-    if(data) {
-      // Map API data into TEAMS_DATA
-      const mapping = [
-        { team: 18221, key: 't18221' },
-        { team: 16236, key: 't16236' },
-        { team: 9791, key: 't9791' }
-      ];
+    return data?.team;
+  };
+
+  try {
+    const results = await Promise.all(teams.map(t => fetchTeam(t).catch(e => null)));
+    
+    results.forEach((d, idx) => {
+      if (!d) return;
       
-      mapping.forEach((m, idx) => {
-        const d = data[m.key];
-        if(!d) return;
+      let opr = d.quickStats?.tot?.value ? d.quickStats.tot.value.toFixed(1) : 0;
+      let auto = d.quickStats?.auto?.value ? d.quickStats.auto.value.toFixed(1) : 0;
+      let dc = d.quickStats?.dc?.value ? d.quickStats.dc.value.toFixed(1) : 0;
+      let eg = d.quickStats?.eg?.value ? d.quickStats.eg.value.toFixed(1) : 0;
+      
+      let pastMatches = [];
+      let wins = 0, losses = 0, ties = 0;
+      
+      if (d.matches && d.matches.length > 0) {
+        // Find the latest event code (last match's event code)
+        const lastEventCode = d.matches[d.matches.length - 1].eventCode;
         
-        let opr = d.quickStats?.tot?.value || 0;
-        let auto = d.quickStats?.auto?.value || 0;
-        let dc = d.quickStats?.dc?.value || 0;
-        let eg = d.quickStats?.eg?.value || 0;
+        // Filter matches to only the latest event
+        const eventMatches = d.matches.filter(m => m.eventCode === lastEventCode);
         
-        let pastMatches = [];
-        let wins=0, losses=0, ties=0;
-        
-        if (d.matches) {
-          d.matches.forEach(mp => {
-            const match = mp.match;
-            if(!match || !match.hasBeenPlayed || !match.scores) return;
-            
-            let ourAlliance = null;
-            let opp1=null, opp2=null;
-            
-            match.teams.forEach(t => {
-              if (t.teamNumber === m.team) ourAlliance = t.alliance;
-              else if (t.alliance !== ourAlliance) {
-                if (!opp1) opp1 = t.teamNumber;
-                else opp2 = t.teamNumber;
-              }
-            });
-            
-            let ourScore = ourAlliance === 'Red' ? match.scores.red?.totalPoints : match.scores.blue?.totalPoints;
-            let theirScore = ourAlliance === 'Red' ? match.scores.blue?.totalPoints : match.scores.red?.totalPoints;
-            
-            let result = "TIE";
-            if (ourScore > theirScore) { result = "WIN"; wins++; }
-            else if (ourScore < theirScore) { result = "LOSS"; losses++; }
-            else { ties++; }
-            
-            pastMatches.push({
-              num: match.description || "Match",
-              time: "Past",
-              isPast: true,
-              result: result,
-              score: `${ourScore}-${theirScore}`,
-              opp1: opp1 || 'N/A',
-              opp2: opp2 || 'N/A'
-            });
+        eventMatches.forEach(mp => {
+          const match = mp.match;
+          if (!match || !match.hasBeenPlayed || !match.scores) return;
+          
+          let ourAlliance = null;
+          let opp1 = null, opp2 = null;
+          
+          match.teams.forEach(t => {
+            if (t.teamNumber === teams[idx]) ourAlliance = t.alliance;
+            else if (t.alliance !== ourAlliance) {
+              if (!opp1) opp1 = t.teamNumber;
+              else opp2 = t.teamNumber;
+            }
           });
-        }
-        
-        // Take the last 8 past matches for UI brevity
-        pastMatches = pastMatches.slice(-8);
-        
-        TEAMS_DATA[idx].name = d.name || TEAMS_DATA[idx].name;
-        TEAMS_DATA[idx].stats = {
-          rank: TEAMS_DATA[idx].stats.rank, // Preserve dummy rank if API doesn't have it
-          rp: TEAMS_DATA[idx].stats.rp,
-          record: `${wins}-${losses}-${ties}`,
-          opr: opr, auto: auto, teleop: dc, endgame: eg
-        };
-        
-        // Replace matches but keep upcoming dummy predictions if any
-        let upcoming = TEAMS_DATA[idx].matches.filter(x => !x.isPast);
-        TEAMS_DATA[idx].matches = [...pastMatches, ...upcoming];
-      });
-      hasLiveStats = true;
-    }
+          
+          let ourScore = ourAlliance === 'Red' ? match.scores.red?.totalPoints : match.scores.blue?.totalPoints;
+          let theirScore = ourAlliance === 'Red' ? match.scores.blue?.totalPoints : match.scores.red?.totalPoints;
+          
+          let result = "TIE";
+          if (ourScore > theirScore) { result = "WIN"; wins++; }
+          else if (ourScore < theirScore) { result = "LOSS"; losses++; }
+          else { ties++; }
+          
+          pastMatches.push({
+            num: match.description || "Match",
+            time: "Past",
+            isPast: true,
+            result: result,
+            score: `${ourScore}-${theirScore}`,
+            opp1: opp1 || 'N/A',
+            opp2: opp2 || 'N/A'
+          });
+        });
+      }
+      
+      pastMatches = pastMatches.slice(-8);
+      
+      TEAMS_DATA[idx].name = d.name || TEAMS_DATA[idx].name;
+      TEAMS_DATA[idx].stats = {
+        rank: TEAMS_DATA[idx].stats.rank,
+        rp: TEAMS_DATA[idx].stats.rp,
+        record: `${wins}-${losses}-${ties}`,
+        opr: opr, auto: auto, teleop: dc, endgame: eg
+      };
+      
+      let upcoming = TEAMS_DATA[idx].matches.filter(x => !x.isPast);
+      TEAMS_DATA[idx].matches = [...pastMatches, ...upcoming];
+    });
+    hasLiveStats = true;
   } catch(e) {
     console.warn("Failed to fetch live stats, falling back to local data.", e);
   }
