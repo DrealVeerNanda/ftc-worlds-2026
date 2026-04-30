@@ -70,6 +70,33 @@
   .match-item { padding: 8px; border: 1px solid var(--border); margin-bottom: 5px; border-radius: 3px; background: rgba(255,255,255,0.02); }
   .match-item .time { color: var(--accent); font-weight: bold; margin-bottom: 3px; }
 
+  /* Analytics Modal */
+  .analytics-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(10px); }
+  .analytics-modal.show { opacity: 1; pointer-events: all; }
+  .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; width: 600px; max-width: 90%; max-height: 85%; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+  .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; color: #fff; }
+  .modal-close { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 1.2rem; transition: color 0.15s; }
+  .modal-close:hover { color: var(--red); }
+  
+  .team-tabs { display: flex; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
+  .team-tab { padding: 10px 15px; font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); cursor: pointer; transition: all 0.2s; border-bottom: 2px solid transparent; flex: 1; text-align: center; }
+  .team-tab:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+  .team-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(0, 180, 216, 0.05); font-weight: bold; }
+  
+  .modal-body { padding: 20px; flex: 1; overflow-y: auto; }
+  .team-view { display: none; }
+  .team-view.active { display: block; }
+  
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat-box { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 10px; border-radius: 3px; text-align: center; }
+  .stat-val { font-size: 1.2rem; font-weight: bold; color: #fff; margin-bottom: 3px; font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
+  .stat-lbl { font-size: 0.5rem; color: var(--muted); text-transform: uppercase; }
+  
+  .sched-section h4 { color: #fff; margin-bottom: 10px; font-size: 0.8rem; border-bottom: 1px dashed var(--border); padding-bottom: 5px; }
+  .pred-win { color: #4CAF50; font-weight: bold; }
+  .pred-loss { color: var(--red); font-weight: bold; }
+
   footer { padding: 4px 14px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 14px; font-size: 0.56rem; color: var(--muted); letter-spacing: 0.04em; flex-shrink: 0; }
   .fi { display: flex; align-items: center; gap: 5px; }
   .fd { width: 5px; height: 5px; border-radius: 50%; }
@@ -90,6 +117,8 @@
     </div>
   </div>
   <div class="controls">
+    <button class="btn" onclick="toggleAnalytics()">📊 Team Analytics</button>
+    <div class="divider" style="width:1px; height:16px; background:var(--border);"></div>
     <div class="dropdown-wrapper">
       <button class="btn" id="streamToggleBtn" onclick="toggleStreamMenu()">📺 Streams ▾</button>
       <div id="streamMenu" class="dropdown-menu">
@@ -111,6 +140,23 @@
   <div class="fi">Hover tile for controls &nbsp;·&nbsp; <kbd>1</kbd>–<kbd>6</kbd> focus &nbsp;·&nbsp; <kbd>Esc</kbd> exit</div>
 </footer>
 
+<div class="analytics-modal" id="analyticsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Team Analytics & Predictions</h2>
+      <button class="modal-close" onclick="toggleAnalytics()">✕</button>
+    </div>
+    <div class="team-tabs">
+      <div class="team-tab active" onclick="switchTeam(0)">18221 Meta Infinity</div>
+      <div class="team-tab" onclick="switchTeam(1)">16236 Juice</div>
+      <div class="team-tab" onclick="switchTeam(2)">9791 Divide by Zero</div>
+    </div>
+    <div class="modal-body">
+      <div id="team-views-container"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 const STREAMS = [
   { id: 'v_KlA02le9g', label: 'Edison Division'     },
@@ -119,6 +165,36 @@ const STREAMS = [
   { id: 'Yd5q_PokJ0Y', label: 'Jackson Division'    },
   { id: 'KbMURIWFcMg', label: 'Lovelace Division'   },
   { id: 'oTLneTQGnsM', label: 'Ross Division'       },
+];
+
+const TEAMS_DATA = [
+  {
+    num: 18221, name: "Meta Infinity",
+    stats: { opr: 142.5, auto: 65.0, teleop: 55.5, endgame: 22.0 },
+    matches: [
+      { num: 42, opp1: 12345, opp2: 6789, time: "11:30 AM", winProb: 85, pred: "WIN" },
+      { num: 55, opp1: 8888, opp2: 9999, time: "2:15 PM", winProb: 62, pred: "WIN" },
+      { num: 71, opp1: 11111, opp2: 22222, time: "4:50 PM", winProb: 41, pred: "LOSS" },
+    ]
+  },
+  {
+    num: 16236, name: "Juice",
+    stats: { opr: 155.2, auto: 70.5, teleop: 60.2, endgame: 24.5 },
+    matches: [
+      { num: 38, opp1: 3456, opp2: 7890, time: "10:45 AM", winProb: 92, pred: "WIN" },
+      { num: 60, opp1: 18221, opp2: 5432, time: "3:05 PM", winProb: 58, pred: "WIN" },
+      { num: 75, opp1: 9791, opp2: 1212, time: "5:20 PM", winProb: 48, pred: "LOSS" },
+    ]
+  },
+  {
+    num: 9791, name: "Divide by Zero",
+    stats: { opr: 160.8, auto: 68.0, teleop: 68.8, endgame: 24.0 },
+    matches: [
+      { num: 45, opp1: 5555, opp2: 6666, time: "12:10 PM", winProb: 88, pred: "WIN" },
+      { num: 68, opp1: 7777, opp2: 8888, time: "4:20 PM", winProb: 75, pred: "WIN" },
+      { num: 75, opp1: 16236, opp2: 3333, time: "5:20 PM", winProb: 52, pred: "WIN" },
+    ]
+  }
 ];
 
 let activeStreams = [...STREAMS];
@@ -148,7 +224,7 @@ function toggleStreamMenu() {
 
 // Close dropdown when clicking outside
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.dropdown-wrapper')) {
+  if (!e.target.closest('.dropdown-wrapper') && e.target.id !== 'streamToggleBtn') {
     document.getElementById('streamMenu').classList.remove('show');
   }
 });
@@ -332,7 +408,11 @@ function setLayout(cls, btn) {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && soloIdx !== null) toggleSolo(soloIdx);
+  if (e.key === 'Escape') {
+    if (soloIdx !== null) toggleSolo(soloIdx);
+    const modal = document.getElementById('analyticsModal');
+    if (modal && modal.classList.contains('show')) toggleAnalytics();
+  }
   const n = parseInt(e.key);
   if (n >= 1 && n <= 6) {
     const s = STREAMS[n - 1];
@@ -340,7 +420,69 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Analytics Functions
+function toggleAnalytics() {
+  const modal = document.getElementById('analyticsModal');
+  if(!modal.classList.contains('show')) {
+    renderTeamViews();
+  }
+  modal.classList.toggle('show');
+}
+
+function switchTeam(idx) {
+  document.querySelectorAll('.team-tab').forEach((t, i) => {
+    t.classList.toggle('active', i === idx);
+  });
+  document.querySelectorAll('.team-view').forEach((v, i) => {
+    v.classList.toggle('active', i === idx);
+  });
+}
+
+function renderTeamViews() {
+  const container = document.getElementById('team-views-container');
+  container.innerHTML = '';
+  
+  TEAMS_DATA.forEach((team, idx) => {
+    let viewHTML = `
+      <div class="team-view ${idx === 0 ? 'active' : ''}">
+        <div class="stat-grid">
+          <div class="stat-box"><div class="stat-val">${team.stats.opr.toFixed(1)}</div><div class="stat-lbl">Simulated OPR</div></div>
+          <div class="stat-box"><div class="stat-val">${team.stats.auto.toFixed(1)}</div><div class="stat-lbl">Auto Pts</div></div>
+          <div class="stat-box"><div class="stat-val">${team.stats.teleop.toFixed(1)}</div><div class="stat-lbl">TeleOp Pts</div></div>
+          <div class="stat-box"><div class="stat-val">${team.stats.endgame.toFixed(1)}</div><div class="stat-lbl">Endgame</div></div>
+        </div>
+        <div class="sched-section">
+          <h4>Simulated Schedule & Predictions</h4>
+    `;
+    
+    team.matches.forEach(m => {
+      let pClass = m.pred === 'WIN' ? 'pred-win' : 'pred-loss';
+      viewHTML += `
+        <div class="match-item" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div class="time" style="color:var(--text);">Match ${m.num} - ${m.time}</div>
+            <div style="font-size:0.55rem; color:var(--muted); margin-top:2px;">vs Team ${m.opp1} & Team ${m.opp2}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="${pClass}">${m.pred}</div>
+            <div style="font-size:0.5rem; color:var(--muted);">${m.winProb}% Win Prob</div>
+          </div>
+        </div>
+      `;
+    });
+    
+    viewHTML += `
+        </div>
+        <p style="font-size:0.5rem; color:var(--muted); margin-top:15px; text-align:center;">*This is a simulated predictive analytics model based on historical OPR data.</p>
+      </div>
+    `;
+    
+    container.innerHTML += viewHTML;
+  });
+}
+
 initStreamMenu();
+renderTeamViews(); // pre-render
 // Initial grid build will be triggered by onYouTubeIframeAPIReady()
 </script>
 </body>
