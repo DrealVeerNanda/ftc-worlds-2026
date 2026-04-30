@@ -88,7 +88,8 @@
   .team-view { display: none; }
   .team-view.active { display: block; }
   
-  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat-grid-top { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+  .stat-grid-bot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
   .stat-box { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 10px; border-radius: 3px; text-align: center; }
   .stat-val { font-size: 1.2rem; font-weight: bold; color: #fff; margin-bottom: 3px; font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
   .stat-lbl { font-size: 0.5rem; color: var(--muted); text-transform: uppercase; }
@@ -170,7 +171,7 @@ const STREAMS = [
 const TEAMS_DATA = [
   {
     num: 18221, name: "Meta Infinity",
-    stats: { opr: 142.5, auto: 65.0, teleop: 55.5, endgame: 22.0 },
+    stats: { rank: 4, rp: 2.57, record: "6-1-0", opr: 142.5, auto: 65.0, teleop: 55.5, endgame: 22.0 },
     matches: [
       { num: 42, opp1: 12345, opp2: 6789, time: "11:30 AM", winProb: 85, pred: "WIN" },
       { num: 55, opp1: 8888, opp2: 9999, time: "2:15 PM", winProb: 62, pred: "WIN" },
@@ -179,7 +180,7 @@ const TEAMS_DATA = [
   },
   {
     num: 16236, name: "Juice",
-    stats: { opr: 155.2, auto: 70.5, teleop: 60.2, endgame: 24.5 },
+    stats: { rank: 2, rp: 2.85, record: "7-0-0", opr: 155.2, auto: 70.5, teleop: 60.2, endgame: 24.5 },
     matches: [
       { num: 38, opp1: 3456, opp2: 7890, time: "10:45 AM", winProb: 92, pred: "WIN" },
       { num: 60, opp1: 18221, opp2: 5432, time: "3:05 PM", winProb: 58, pred: "WIN" },
@@ -188,7 +189,7 @@ const TEAMS_DATA = [
   },
   {
     num: 9791, name: "Divide by Zero",
-    stats: { opr: 160.8, auto: 68.0, teleop: 68.8, endgame: 24.0 },
+    stats: { rank: 1, rp: 2.85, record: "7-0-0", opr: 160.8, auto: 68.0, teleop: 68.8, endgame: 24.0 },
     matches: [
       { num: 45, opp1: 5555, opp2: 6666, time: "12:10 PM", winProb: 88, pred: "WIN" },
       { num: 68, opp1: 7777, opp2: 8888, time: "4:20 PM", winProb: 75, pred: "WIN" },
@@ -445,11 +446,16 @@ function renderTeamViews() {
   TEAMS_DATA.forEach((team, idx) => {
     let viewHTML = `
       <div class="team-view ${idx === 0 ? 'active' : ''}">
-        <div class="stat-grid">
+        <div class="stat-grid-top">
+          <div class="stat-box"><div class="stat-val">#${team.stats.rank}</div><div class="stat-lbl">Division Rank</div></div>
+          <div class="stat-box"><div class="stat-val">${team.stats.rp.toFixed(2)}</div><div class="stat-lbl">Avg RP</div></div>
+          <div class="stat-box"><div class="stat-val">${team.stats.record}</div><div class="stat-lbl">W-L-T</div></div>
           <div class="stat-box"><div class="stat-val">${team.stats.opr.toFixed(1)}</div><div class="stat-lbl">Simulated OPR</div></div>
-          <div class="stat-box"><div class="stat-val">${team.stats.auto.toFixed(1)}</div><div class="stat-lbl">Auto Pts</div></div>
-          <div class="stat-box"><div class="stat-val">${team.stats.teleop.toFixed(1)}</div><div class="stat-lbl">TeleOp Pts</div></div>
-          <div class="stat-box"><div class="stat-val">${team.stats.endgame.toFixed(1)}</div><div class="stat-lbl">Endgame</div></div>
+        </div>
+        <div class="stat-grid-bot">
+          <div class="stat-box"><div class="stat-val">${team.stats.auto.toFixed(1)}</div><div class="stat-lbl">Avg Auto</div></div>
+          <div class="stat-box"><div class="stat-val">${team.stats.teleop.toFixed(1)}</div><div class="stat-lbl">Avg TeleOp</div></div>
+          <div class="stat-box"><div class="stat-val">${team.stats.endgame.toFixed(1)}</div><div class="stat-lbl">Avg Endgame</div></div>
         </div>
         <div class="sched-section">
           <h4>Simulated Schedule & Predictions</h4>
