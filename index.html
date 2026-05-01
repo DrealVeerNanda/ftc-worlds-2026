@@ -410,6 +410,10 @@ async function fetchLiveStats() {
       query {
         team: teamByNumber(number: ${teamNum}) {
           name
+          events(season: 2025) {
+            eventCode
+            stats { ... on TeamEventStats2025 { rank rp } }
+          }
           quickStats(season: 2025) { tot { value } auto { value } dc { value } eg { value } }
           matches(season: 2025) {
             eventCode
@@ -446,6 +450,17 @@ async function fetchLiveStats() {
       let auto = d.quickStats?.auto?.value || 0;
       let dc = d.quickStats?.dc?.value || 0;
       let eg = d.quickStats?.eg?.value || 0;
+      
+      let rank = "N/A";
+      let rp = "N/A";
+      if (d.events) {
+        // Find the first FTCCMP event that actually has stats (e.g. FTCCMP1FRAN)
+        const cmpEvent = d.events.find(e => e.eventCode && e.eventCode.startsWith('FTCCMP') && e.stats && e.stats.rank);
+        if (cmpEvent && cmpEvent.stats) {
+          rank = cmpEvent.stats.rank;
+          rp = cmpEvent.stats.rp;
+        }
+      }
       
       let pastMatches = [];
       let wins = 0, losses = 0, ties = 0;
@@ -505,8 +520,8 @@ async function fetchLiveStats() {
       
       TEAMS_DATA[idx].name = d.name || TEAMS_DATA[idx].name;
       TEAMS_DATA[idx].stats = {
-        rank: TEAMS_DATA[idx].stats.rank,
-        rp: TEAMS_DATA[idx].stats.rp,
+        rank: rank,
+        rp: rp,
         record: `${wins}-${losses}-${ties}`,
         opr: opr, auto: auto, teleop: dc, endgame: eg
       };
