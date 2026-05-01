@@ -239,24 +239,11 @@ function generateScheduleHTML(streamLabel) {
   let startTime = new Date();
   startTime.setHours(8, 0, 0, 0);
 
-  for (let m = 1; m <= 80; m++) {
-    let matchTime = new Date(startTime.getTime() + (m - 1) * 8 * 60000);
-    
-    let isPast = matchTime < now;
-    let opacityStyle = isPast ? 'opacity: 0.4; filter: grayscale(1);' : '';
-    let statusText = isPast ? ' <span style="font-size:0.5rem; border:1px solid var(--muted); padding:1px 3px; border-radius:2px; margin-left:5px;">COMPLETED</span>' : '';
-
-    let timeStr = matchTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     matchesHTML += `
-      <div class="match-item" style="${opacityStyle}">
-        <div class="time">Match ${m} - ${timeStr}${statusText}</div>
-        <div style="display:flex; justify-content:space-between;">
-          <span style="color:#ff4d4d;">Red: ${10000+m*11} & ${12000+m*5}</span>
-          <span style="color:#4da6ff;">Blue: ${15000+m*3} & ${18000+m*7}</span>
-        </div>
+      <div class="match-item" style="opacity: 0.7; text-align: center; padding: 20px;">
+        <span style="color:var(--muted); font-size:0.85rem;">Live division schedule pending...</span>
       </div>
     `;
-  }
   
   if(matchesHTML === '') {
     matchesHTML = '<p>No more matches today!</p>';
