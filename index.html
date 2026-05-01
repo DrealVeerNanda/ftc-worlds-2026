@@ -508,9 +508,11 @@ async function fetchLiveStats() {
           let opp1 = null, opp2 = null;
           
           if (match.teams) {
+            const ourTeam = match.teams.find(t => t.teamNumber === teams[idx]);
+            if (ourTeam) ourAlliance = ourTeam.alliance;
+            
             match.teams.forEach(t => {
-              if (t.teamNumber === teams[idx]) ourAlliance = t.alliance;
-              else if (t.alliance !== ourAlliance) {
+              if (t.teamNumber !== teams[idx] && t.alliance !== ourAlliance) {
                 if (!opp1) opp1 = t.teamNumber;
                 else opp2 = t.teamNumber;
               }
