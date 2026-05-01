@@ -385,6 +385,17 @@ function setLayout(cls, btn) {
   btn.classList.add('active');
 }
 
+// When returning to this tab, iframes steal focus and swallow keyboard events.
+// Reclaim focus on visibility change and on window focus so hotkeys keep working.
+function reclaimFocus() {
+  if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
+    document.activeElement.blur();
+  }
+  window.focus();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) reclaimFocus(); });
+window.addEventListener('focus', reclaimFocus);
+
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (soloIdx !== null) toggleSolo(soloIdx);
