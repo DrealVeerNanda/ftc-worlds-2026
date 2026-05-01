@@ -215,6 +215,7 @@ let activeStreams = [...STREAMS];
 let soloIdx = null;
 let isApiReady = false;
 let players = {};
+const initialSeeked = new Set();
 
 function onYouTubeIframeAPIReady() {
   isApiReady = true;
@@ -355,7 +356,20 @@ function buildGrid() {
         controls: 1
       },
       events: {
+        'onReady': (event) => {
+          const p = event.target;
+          const dur = p.getDuration();
+          if (dur > 0) p.seekTo(dur, true);
+          p.playVideo();
+        },
         'onStateChange': (event) => {
+          if (event.data === YT.PlayerState.PLAYING && !initialSeeked.has(s.id)) {
+            // Duration may not be available in onReady for live streams — catch it on first play
+            initialSeeked.add(s.id);
+            const p = event.target;
+            const dur = p.getDuration();
+            if (dur > 0) p.seekTo(dur, true);
+          }
           // If the player pauses and we didn't want it to, force it to resume playing
           // This prevents background tab throttling from pausing the live stream
           if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.UNSTARTED) {
