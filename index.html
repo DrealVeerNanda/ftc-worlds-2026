@@ -345,6 +345,9 @@ function buildGrid() {
     cell.appendChild(bar);
     grid.appendChild(cell);
 
+    // Clear seek tracking so this player gets a fresh live-edge seek on first play
+    initialSeeked.delete(s.id);
+
     // Initialize YouTube Iframe API Player
     players[s.id] = new YT.Player(`yt-${s.id}`, {
       videoId: s.id,
@@ -357,18 +360,14 @@ function buildGrid() {
       },
       events: {
         'onReady': (event) => {
-          const p = event.target;
-          const dur = p.getDuration();
-          if (dur > 0) p.seekTo(dur, true);
-          p.playVideo();
+          event.target.seekTo(999999, true);
+          event.target.playVideo();
         },
         'onStateChange': (event) => {
           if (event.data === YT.PlayerState.PLAYING && !initialSeeked.has(s.id)) {
-            // Duration may not be available in onReady for live streams — catch it on first play
+            // Catch first play in case onReady fired before the live stream was ready
             initialSeeked.add(s.id);
-            const p = event.target;
-            const dur = p.getDuration();
-            if (dur > 0) p.seekTo(dur, true);
+            event.target.seekTo(999999, true);
           }
           // If the player pauses and we didn't want it to, force it to resume playing
           // This prevents background tab throttling from pausing the live stream
@@ -437,18 +436,22 @@ function reclaimFocus() {
 function seekAllToLive() {
   Object.values(players).forEach(player => {
     try {
-      if (typeof player.getDuration === 'function' && typeof player.seekTo === 'function') {
-        const duration = player.getDuration();
-        if (duration > 0) player.seekTo(duration, true);
+      if (typeof player.seekTo === 'function') {
+        // Seeking to a very large value is the reliable way to jump to the live edge;
+        // YouTube clips it to the current live position regardless of getDuration()
+        player.seekTo(999999, true);
       }
     } catch(e) {}
   });
 }
 
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) { reclaimFocus(); seekAllToLive(); }
-});
-window.addEventListener('focus', reclaimFocus);
+function onTabReturn() {
+  reclaimFocus();
+  seekAllToLive();
+}
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden) onTabReturn(); });
+window.addEventListener('focus', onTabReturn);
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
