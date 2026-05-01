@@ -98,6 +98,29 @@
   .pred-win { color: #4CAF50; font-weight: bold; }
   .pred-loss { color: var(--red); font-weight: bold; }
 
+  .rank-proj { display: flex; align-items: center; gap: 10px; background: rgba(0,180,216,0.06); border: 1px solid rgba(0,180,216,0.2); border-radius: 3px; padding: 10px 14px; margin-bottom: 16px; }
+  .rank-proj-val { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--accent); line-height: 1; }
+  .rank-proj-arrow { font-size: 1rem; }
+  .rank-proj-arrow.up { color: #4CAF50; }
+  .rank-proj-arrow.down { color: var(--red); }
+  .rank-proj-arrow.same { color: var(--muted); }
+  .rank-proj-detail { font-size: 0.55rem; color: var(--muted); line-height: 1.5; }
+  .rank-proj-detail strong { color: var(--text); }
+
+  .pick-table { width: 100%; border-collapse: collapse; font-size: 0.58rem; }
+  .pick-table th { color: var(--muted); text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--border); font-weight: normal; text-transform: uppercase; font-size: 0.5rem; }
+  .pick-table td { padding: 6px 6px; border-bottom: 1px solid rgba(28,37,48,0.6); color: var(--text); }
+  .pick-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .pick-table tr.our-team td { background: rgba(0,180,216,0.06); }
+  .badge { display: inline-block; font-size: 0.42rem; padding: 1px 4px; border-radius: 2px; margin-left: 3px; font-weight: bold; text-transform: uppercase; vertical-align: middle; }
+  .badge-auto { background: rgba(255,200,0,0.15); color: #ffc800; border: 1px solid rgba(255,200,0,0.3); }
+  .badge-endgame { background: rgba(160,80,255,0.15); color: #a050ff; border: 1px solid rgba(160,80,255,0.3); }
+  .badge-allround { background: rgba(0,180,216,0.15); color: var(--accent); border: 1px solid rgba(0,180,216,0.3); }
+  .badge-watch { background: rgba(255,120,0,0.15); color: #ff7800; border: 1px solid rgba(255,120,0,0.3); }
+  .pick-section-label { font-size: 0.5rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.08em; margin: 14px 0 6px; }
+  #alliance-view-container { display: none; }
+  #alliance-view-container.active { display: block; }
+
   footer { padding: 4px 14px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 14px; font-size: 0.56rem; color: var(--muted); letter-spacing: 0.04em; flex-shrink: 0; }
   .fi { display: flex; align-items: center; gap: 5px; }
   .fd { width: 5px; height: 5px; border-radius: 50%; }
@@ -151,9 +174,11 @@
       <div class="team-tab active" onclick="switchTeam(0)">18221 Meta Infinity</div>
       <div class="team-tab" onclick="switchTeam(1)">16236 Juice</div>
       <div class="team-tab" onclick="switchTeam(2)">9791 Divide by Zero</div>
+      <div class="team-tab" onclick="switchTeam(3)" style="border-left:1px solid var(--border);">🤝 Alliance Picks</div>
     </div>
     <div class="modal-body">
       <div id="team-views-container"></div>
+      <div id="alliance-view-container"></div>
     </div>
   </div>
 </div>
@@ -428,6 +453,7 @@ document.addEventListener('keydown', e => {
 // Analytics Functions
 let isLoadingLiveStats = false;
 let hasLiveStats = false;
+let divisionPicksData = {}; // keyed by eventCode -> [{teamNumber, name, opr, auto, teleop, endgame, rank, rp}]
 
 async function fetchLiveStats() {
   const teams = [18221, 16236, 9791];
@@ -445,7 +471,7 @@ async function fetchLiveStats() {
           matches(season: 2025) {
             eventCode
             match {
-              hasBeenPlayed description
+              hasBeenPlayed description scheduledStartTime actualStartTime
               scores { ... on MatchScores2025 { red { totalPoints } blue { totalPoints } } }
               teams { teamNumber alliance }
             }
@@ -613,9 +639,19 @@ async function fetchLiveStats() {
             else pred = "TIE";
           }
           
+          // Format scheduled start time as local time (e.g. "2:15 PM")
+          let startTime = null;
+          const rawTime = match.scheduledStartTime || match.actualStartTime;
+          if (rawTime) {
+            try {
+              startTime = new Date(rawTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            } catch(e) {}
+          }
+
           pastMatches.push({
             num: match.description || "Match",
             time: isPast ? "Past" : "Upcoming",
+            startTime: startTime,
             isPast: isPast,
             result: result,
             score: scoreStr,
@@ -627,18 +663,77 @@ async function fetchLiveStats() {
         });
       }
       
+      // Calculate projected rank after upcoming matches
+      let projectedRank = rank;
+      if (typeof rank === 'number') {
+        const currentRp = typeof rp === 'number' ? rp : parseFloat(rp) || 0;
+        const playedCount = wins + losses + ties;
+        let simWins = wins, simLosses = losses, simTies = ties;
+        let totalRp = currentRp * playedCount;
+        pastMatches.forEach(m => {
+          if (!m.isPast) {
+            const prob = m.winProb / 100;
+            totalRp += prob >= 0.5 ? 2 * prob : 0; // expected RP per match
+            if (m.winProb > 55) simWins++;
+            else if (m.winProb < 45) simLosses++;
+            else simTies++;
+          }
+        });
+        const simPlayed = simWins + simLosses + simTies;
+        const simAvgRp = simPlayed > 0 ? totalRp / simPlayed : currentRp;
+        // Rough rank projection: assume ~0.6 RP/rank-position shift at this stage
+        const rpDelta = simAvgRp - currentRp;
+        projectedRank = Math.max(1, Math.round(rank - rpDelta * 5));
+      }
+
       TEAMS_DATA[idx].name = d.name || TEAMS_DATA[idx].name;
       TEAMS_DATA[idx].stats = {
         rank: rank,
         rp: rp,
         record: `${wins}-${losses}-${ties}`,
-        opr: opr, auto: auto, teleop: dc, endgame: eg
+        opr: opr, auto: auto, teleop: dc, endgame: eg,
+        projectedRank: projectedRank,
+        cmpEventCode: cmpEventCode
       };
-      
+
       // Override matches completely with API data
       TEAMS_DATA[idx].matches = pastMatches;
     });
-    
+
+    // Pass 4: Fetch division-wide team list for alliance picks (one query per unique division)
+    const eventCodes = [...new Set(TEAMS_DATA.map(t => t.stats.cmpEventCode).filter(Boolean))];
+    await Promise.all(eventCodes.map(async (evCode) => {
+      try {
+        const divQuery = `
+          query {
+            eventByCode(season: 2025, code: "${evCode}") {
+              teams {
+                team { number name }
+                stats { ... on TeamEventStats2025 { rank rp } }
+              }
+            }
+          }
+        `;
+        const divController = new AbortController();
+        setTimeout(() => divController.abort(), 8000);
+        const divRes = await fetch("https://api.ftcscout.org/graphql", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: divQuery }), signal: divController.signal
+        });
+        const divData = await divRes.json();
+        const divTeams = divData?.data?.eventByCode?.teams || [];
+        divisionPicksData[evCode] = divTeams.map(t => ({
+          teamNumber: t.team?.number,
+          name: t.team?.name || `Team ${t.team?.number}`,
+          rank: t.stats?.rank,
+          rp: t.stats?.rp,
+          opr: oprDict[t.team?.number] || 0
+        })).sort((a, b) => (b.opr || 0) - (a.opr || 0));
+      } catch(e) {
+        console.warn("Failed to fetch division teams for", evCode, e);
+      }
+    }));
+
     hasLiveStats = true;
   } catch(e) {
     console.warn("Failed to fetch live stats, falling back to local data.", e);
@@ -679,13 +774,48 @@ function switchTeam(idx) {
   document.querySelectorAll('.team-view').forEach((v, i) => {
     v.classList.toggle('active', i === idx);
   });
+  const allianceView = document.getElementById('alliance-view-container');
+  if (allianceView) allianceView.classList.toggle('active', idx === 3);
+}
+
+function classifyTeam(t, divAvgOpr) {
+  const badges = [];
+  if (t.opr > divAvgOpr * 1.15) badges.push('<span class="badge badge-allround">All-Round</span>');
+  if (t.autoOpr > divAvgOpr * 0.35) badges.push('<span class="badge badge-auto">Auto</span>');
+  if (t.egOpr > divAvgOpr * 0.12) badges.push('<span class="badge badge-endgame">Endgame</span>');
+  return badges.join('');
 }
 
 function renderTeamViews() {
   const container = document.getElementById('team-views-container');
   container.innerHTML = '';
-  
+
   TEAMS_DATA.forEach((team, idx) => {
+    const rank = team.stats.rank;
+    const proj = team.stats.projectedRank;
+    let rankArrowHTML = '';
+    if (typeof rank === 'number' && typeof proj === 'number' && proj !== rank) {
+      const diff = rank - proj; // positive = moved up
+      const arrow = diff > 0 ? '▲' : '▼';
+      const cls = diff > 0 ? 'up' : 'down';
+      const upcoming = team.matches.filter(m => !m.isPast).length;
+      rankArrowHTML = `
+        <div class="rank-proj">
+          <div>
+            <div style="font-size:0.5rem; color:var(--muted); text-transform:uppercase; margin-bottom:2px;">Projected after ${upcoming} match${upcoming !== 1 ? 'es' : ''}</div>
+            <div style="display:flex; align-items:baseline; gap:8px;">
+              <span class="rank-proj-val">#${proj}</span>
+              <span class="rank-proj-arrow ${cls}">${arrow} ${Math.abs(diff)} spot${Math.abs(diff) !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+          <div class="rank-proj-detail" style="margin-left:auto; text-align:right;">
+            Current rank <strong>#${rank}</strong><br>
+            Based on win probability & RP
+          </div>
+        </div>
+      `;
+    }
+
     let viewHTML = `
       <div class="team-view ${idx === 0 ? 'active' : ''}">
         <div class="stat-grid-top">
@@ -699,6 +829,7 @@ function renderTeamViews() {
           <div class="stat-box"><div class="stat-val">${isNaN(team.stats.teleop) ? team.stats.teleop : Number(team.stats.teleop).toFixed(1)}</div><div class="stat-lbl">Avg TeleOp</div></div>
           <div class="stat-box"><div class="stat-val">${isNaN(team.stats.endgame) ? team.stats.endgame : Number(team.stats.endgame).toFixed(1)}</div><div class="stat-lbl">Avg Endgame</div></div>
         </div>
+        ${rankArrowHTML}
         <div class="sched-section">
           <h4>Schedule & Predictions</h4>
     `;
@@ -706,10 +837,11 @@ function renderTeamViews() {
     team.matches.forEach(m => {
       if (m.isPast) {
         let pClass = m.result === 'WIN' ? 'pred-win' : 'pred-loss';
+        const timeLabel = m.startTime ? m.startTime : m.time;
         viewHTML += `
           <div class="match-item" style="display:flex; justify-content:space-between; align-items:center; opacity:0.6;">
             <div>
-              <div class="time" style="color:var(--text);">Match ${m.num} - ${m.time} <span style="font-size:0.5rem; border:1px solid var(--muted); padding:1px 3px; border-radius:2px; margin-left:5px;">DONE</span></div>
+              <div class="time" style="color:var(--text);">Match ${m.num} <span style="font-size:0.5rem; border:1px solid var(--muted); padding:1px 3px; border-radius:2px; margin-left:5px;">DONE</span></div>
               <div style="font-size:0.55rem; color:var(--muted); margin-top:2px;">vs Team ${m.opp1} & Team ${m.opp2}</div>
             </div>
             <div style="text-align:right;">
@@ -720,10 +852,11 @@ function renderTeamViews() {
         `;
       } else {
         let pClass = m.pred === 'WIN' ? 'pred-win' : 'pred-loss';
+        const timeLabel = m.startTime ? m.startTime : 'Upcoming';
         viewHTML += `
           <div class="match-item" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div class="time" style="color:var(--text);">Match ${m.num} - ${m.time}</div>
+              <div class="time" style="color:var(--text);">Match ${m.num} <span style="font-size:0.5rem; color:var(--accent); margin-left:6px;">@ ${timeLabel}</span></div>
               <div style="font-size:0.55rem; color:var(--muted); margin-top:2px;">vs Team ${m.opp1} & Team ${m.opp2}</div>
             </div>
             <div style="text-align:right;">
@@ -743,6 +876,96 @@ function renderTeamViews() {
     
     container.innerHTML += viewHTML;
   });
+
+  // Render alliance picks tab
+  renderAlliancePicks();
+}
+
+function renderAlliancePicks() {
+  const allianceContainer = document.getElementById('alliance-view-container');
+  if (!allianceContainer) return;
+
+  const ourTeamNumbers = TEAMS_DATA.map(t => t.num);
+
+  // Build one section per division our teams are in
+  const eventCodes = [...new Set(TEAMS_DATA.map(t => t.stats?.cmpEventCode).filter(Boolean))];
+
+  if (eventCodes.length === 0 || Object.keys(divisionPicksData).length === 0) {
+    allianceContainer.innerHTML = '<p style="color:var(--muted); font-size:0.6rem; padding:20px 0; text-align:center;">Division data not available yet — open Team Analytics first to load live data.</p>';
+    return;
+  }
+
+  let html = '';
+
+  eventCodes.forEach(evCode => {
+    const divTeams = divisionPicksData[evCode];
+    if (!divTeams || divTeams.length === 0) return;
+
+    // Find which of our teams are in this division
+    const ourTeamsInDiv = TEAMS_DATA.filter(t => t.stats?.cmpEventCode === evCode);
+    const divLabel = ourTeamsInDiv.map(t => `${t.num} ${t.name}`).join(' / ');
+
+    const avgOpr = divTeams.reduce((s, t) => s + t.opr, 0) / (divTeams.length || 1);
+
+    // Top picks: high OPR teams not already our teams
+    const candidates = divTeams.filter(t => !ourTeamNumbers.includes(t.teamNumber));
+    const top10 = candidates.slice(0, 10);
+
+    // "Keep an eye on": teams ranked 5-20 by OPR but strong in auto or endgame
+    // (good complement picks, not necessarily top raw OPR)
+    const watchList = candidates
+      .filter((t, i) => i >= 3 && i < 25 && (t.autoOpr > avgOpr * 0.3 || t.egOpr > avgOpr * 0.1))
+      .slice(0, 8);
+
+    html += `<div style="margin-bottom:24px;">`;
+    html += `<div style="font-size:0.65rem; color:var(--accent); font-family:'Bebas Neue',sans-serif; letter-spacing:0.08em; margin-bottom:2px;">${evCode}</div>`;
+    html += `<div style="font-size:0.5rem; color:var(--muted); margin-bottom:12px;">${divLabel}</div>`;
+
+    html += `<div class="pick-section-label">🏆 Top Captain-Compatible Picks (by OPR)</div>`;
+    html += `<table class="pick-table"><thead><tr>
+      <th>Rank</th><th>Team</th><th>OPR</th><th>Tags</th>
+    </tr></thead><tbody>`;
+
+    top10.forEach((t, i) => {
+      const isOurs = ourTeamNumbers.includes(t.teamNumber);
+      const opr = t.opr ? t.opr.toFixed(1) : '—';
+      const rankStr = t.rank ? `#${t.rank}` : `#${i + 1}`;
+      html += `<tr class="${isOurs ? 'our-team' : ''}">
+        <td style="color:var(--muted);">${rankStr}</td>
+        <td><strong style="color:var(--text);">${t.teamNumber}</strong> <span style="color:var(--muted); font-size:0.5rem;">${t.name}</span></td>
+        <td style="color:var(--accent);">${opr}</td>
+        <td>${i < 3 ? '<span class="badge badge-allround">Top Pick</span>' : ''}${i >= 3 && t.opr > avgOpr * 1.1 ? '<span class="badge badge-watch">Strong</span>' : ''}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>`;
+
+    if (watchList.length > 0) {
+      html += `<div class="pick-section-label" style="margin-top:16px;">👀 Keep an Eye On (complementary picks)</div>`;
+      html += `<table class="pick-table"><thead><tr>
+        <th>Rank</th><th>Team</th><th>OPR</th><th>Why</th>
+      </tr></thead><tbody>`;
+      watchList.forEach(t => {
+        const opr = t.opr ? t.opr.toFixed(1) : '—';
+        const rankStr = t.rank ? `#${t.rank}` : '—';
+        const why = t.opr > avgOpr * 1.05
+          ? '<span class="badge badge-allround">Solid OPR</span>'
+          : '<span class="badge badge-watch">Sleeper</span>';
+        html += `<tr>
+          <td style="color:var(--muted);">${rankStr}</td>
+          <td><strong style="color:var(--text);">${t.teamNumber}</strong> <span style="color:var(--muted); font-size:0.5rem;">${t.name}</span></td>
+          <td style="color:var(--accent);">${opr}</td>
+          <td>${why}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+
+    html += `<p style="font-size:0.48rem; color:var(--muted); margin-top:10px;">Sorted by OPR (Offensive Power Rating) from FTC Scout. OPR data for opponent teams may be season-wide, not division-specific.</p>`;
+    html += `</div>`;
+  });
+
+  allianceContainer.innerHTML = html || '<p style="color:var(--muted); font-size:0.6rem; padding:20px 0;">No division data loaded.</p>';
 }
 
 initStreamMenu();
