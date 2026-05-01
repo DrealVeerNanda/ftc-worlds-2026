@@ -525,11 +525,16 @@ async function fetchLiveStats() {
       let rp = "N/A";
       let cmpEventCode = null;
       if (d.events) {
-        const cmpEvent = d.events.find(e => e.eventCode && e.eventCode.startsWith('FTCCMP') && e.stats && e.stats.rank);
-        if (cmpEvent && cmpEvent.stats) {
-          rank = cmpEvent.stats.rank;
-          rp = cmpEvent.stats.rp;
+        // Prefer the CMP event that has rank stats; fall back to any CMP event
+        const cmpEventWithRank = d.events.find(e => e.eventCode && e.eventCode.startsWith('FTCCMP') && e.stats && e.stats.rank);
+        const anyCmpEvent = d.events.find(e => e.eventCode && e.eventCode.startsWith('FTCCMP'));
+        const cmpEvent = cmpEventWithRank || anyCmpEvent;
+        if (cmpEvent) {
           cmpEventCode = cmpEvent.eventCode;
+          if (cmpEvent.stats) {
+            rank = cmpEvent.stats.rank;
+            rp = cmpEvent.stats.rp;
+          }
         }
       }
 
@@ -537,7 +542,8 @@ async function fetchLiveStats() {
       let wins = 0, losses = 0, ties = 0;
 
       if (d.matches && d.matches.length > 0) {
-        const eventMatches = d.matches.filter(m => cmpEventCode ? m.eventCode === cmpEventCode : (m.eventCode && m.eventCode.startsWith('FTCCMP')));
+        // Use exact event code to avoid mixing matches from different CMP divisions
+        const eventMatches = d.matches.filter(m => cmpEventCode ? m.eventCode === cmpEventCode : false);
         
         eventMatches.forEach(mp => {
           const match = mp.match;
