@@ -497,48 +497,55 @@ async function fetchLiveStats() {
       let wins = 0, losses = 0, ties = 0;
       
       if (d.matches && d.matches.length > 0) {
-        // Find the latest event code (last match's event code)
-        const lastEventCode = d.matches[d.matches.length - 1].eventCode;
-        
-        // Filter matches to only the latest event
-        const eventMatches = d.matches.filter(m => m.eventCode === lastEventCode);
+        // Filter matches to only World Championship events (starts with FTCCMP)
+        const eventMatches = d.matches.filter(m => m.eventCode && m.eventCode.startsWith('FTCCMP'));
         
         eventMatches.forEach(mp => {
           const match = mp.match;
-          if (!match || !match.hasBeenPlayed || !match.scores) return;
+          if (!match) return;
           
           let ourAlliance = null;
           let opp1 = null, opp2 = null;
           
-          match.teams.forEach(t => {
-            if (t.teamNumber === teams[idx]) ourAlliance = t.alliance;
-            else if (t.alliance !== ourAlliance) {
-              if (!opp1) opp1 = t.teamNumber;
-              else opp2 = t.teamNumber;
-            }
-          });
+          if (match.teams) {
+            match.teams.forEach(t => {
+              if (t.teamNumber === teams[idx]) ourAlliance = t.alliance;
+              else if (t.alliance !== ourAlliance) {
+                if (!opp1) opp1 = t.teamNumber;
+                else opp2 = t.teamNumber;
+              }
+            });
+          }
           
-          let ourScore = ourAlliance === 'Red' ? match.scores.red?.totalPoints : match.scores.blue?.totalPoints;
-          let theirScore = ourAlliance === 'Red' ? match.scores.blue?.totalPoints : match.scores.red?.totalPoints;
+          let result = "UPCOMING";
+          let scoreStr = "Pending";
+          let isPast = false;
           
-          let result = "TIE";
-          if (ourScore > theirScore) { result = "WIN"; wins++; }
-          else if (ourScore < theirScore) { result = "LOSS"; losses++; }
-          else { ties++; }
+          if (match.hasBeenPlayed && match.scores) {
+            let ourScore = ourAlliance === 'Red' ? match.scores.red?.totalPoints : match.scores.blue?.totalPoints;
+            let theirScore = ourAlliance === 'Red' ? match.scores.blue?.totalPoints : match.scores.red?.totalPoints;
+            
+            if (ourScore > theirScore) { result = "WIN"; wins++; }
+            else if (ourScore < theirScore) { result = "LOSS"; losses++; }
+            else { result = "TIE"; ties++; }
+            
+            scoreStr = `${ourScore}-${theirScore}`;
+            isPast = true;
+          }
           
           pastMatches.push({
             num: match.description || "Match",
-            time: "Past",
-            isPast: true,
+            time: isPast ? "Past" : "Upcoming",
+            isPast: isPast,
             result: result,
-            score: `${ourScore}-${theirScore}`,
+            score: scoreStr,
+            winProb: isPast ? null : 50, // Dummy prob for UI
+            pred: isPast ? null : "N/A",
             opp1: opp1 || 'N/A',
             opp2: opp2 || 'N/A'
           });
         });
       }
-      
-      pastMatches = pastMatches.slice(-8);
       
       TEAMS_DATA[idx].name = d.name || TEAMS_DATA[idx].name;
       TEAMS_DATA[idx].stats = {
@@ -548,8 +555,8 @@ async function fetchLiveStats() {
         opr: opr, auto: auto, teleop: dc, endgame: eg
       };
       
-      let upcoming = TEAMS_DATA[idx].matches.filter(x => !x.isPast);
-      TEAMS_DATA[idx].matches = [...pastMatches, ...upcoming];
+      // Override matches completely with API data
+      TEAMS_DATA[idx].matches = pastMatches;
     });
     hasLiveStats = true;
   } catch(e) {
