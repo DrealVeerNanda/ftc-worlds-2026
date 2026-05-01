@@ -443,8 +443,10 @@ async function fetchLiveStats() {
   try {
     const results = await Promise.all(teams.map(t => fetchTeam(t).catch(e => null)));
     
+    let validResults = 0;
     results.forEach((d, idx) => {
       if (!d) return;
+      validResults++;
       
       let opr = d.quickStats?.tot?.value || 0;
       let auto = d.quickStats?.auto?.value || 0;
@@ -529,6 +531,11 @@ async function fetchLiveStats() {
       // Override matches completely with API data
       TEAMS_DATA[idx].matches = pastMatches;
     });
+    
+    if (validResults === 0) {
+      throw new Error("All API requests failed or returned empty data.");
+    }
+    
     hasLiveStats = true;
   } catch(e) {
     console.warn("Failed to fetch live stats, falling back to local data.", e);
