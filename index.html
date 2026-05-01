@@ -578,14 +578,14 @@ function renderTeamViews() {
       <div class="team-view ${idx === 0 ? 'active' : ''}">
         <div class="stat-grid-top">
           <div class="stat-box"><div class="stat-val">#${team.stats.rank}</div><div class="stat-lbl">Division Rank</div></div>
-          <div class="stat-box"><div class="stat-val">${team.stats.rp.toFixed(2)}</div><div class="stat-lbl">Avg RP</div></div>
+          <div class="stat-box"><div class="stat-val">${isNaN(team.stats.rp) ? team.stats.rp : Number(team.stats.rp).toFixed(2)}</div><div class="stat-lbl">Avg RP</div></div>
           <div class="stat-box"><div class="stat-val">${team.stats.record}</div><div class="stat-lbl">W-L-T</div></div>
-          <div class="stat-box"><div class="stat-val">${team.stats.opr.toFixed(1)}</div><div class="stat-lbl">Live OPR</div></div>
+          <div class="stat-box"><div class="stat-val">${isNaN(team.stats.opr) ? team.stats.opr : Number(team.stats.opr).toFixed(1)}</div><div class="stat-lbl">Live OPR</div></div>
         </div>
         <div class="stat-grid-bot">
-          <div class="stat-box"><div class="stat-val">${team.stats.auto.toFixed(1)}</div><div class="stat-lbl">Avg Auto</div></div>
-          <div class="stat-box"><div class="stat-val">${team.stats.teleop.toFixed(1)}</div><div class="stat-lbl">Avg TeleOp</div></div>
-          <div class="stat-box"><div class="stat-val">${team.stats.endgame.toFixed(1)}</div><div class="stat-lbl">Avg Endgame</div></div>
+          <div class="stat-box"><div class="stat-val">${isNaN(team.stats.auto) ? team.stats.auto : Number(team.stats.auto).toFixed(1)}</div><div class="stat-lbl">Avg Auto</div></div>
+          <div class="stat-box"><div class="stat-val">${isNaN(team.stats.teleop) ? team.stats.teleop : Number(team.stats.teleop).toFixed(1)}</div><div class="stat-lbl">Avg TeleOp</div></div>
+          <div class="stat-box"><div class="stat-val">${isNaN(team.stats.endgame) ? team.stats.endgame : Number(team.stats.endgame).toFixed(1)}</div><div class="stat-lbl">Avg Endgame</div></div>
         </div>
         <div class="sched-section">
           <h4>Schedule & Predictions</h4>
