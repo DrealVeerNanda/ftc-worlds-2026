@@ -396,6 +396,22 @@ document.addEventListener('keydown', e => {
     const s = STREAMS[n - 1];
     if (activeStreams.includes(s)) toggleSolo(n - 1);
   }
+  // Arrow keys / J / L seek the solo player when focus is outside the iframe
+  if (soloIdx !== null && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','j','l','k',' '].includes(e.key)) {
+    const player = players[STREAMS[soloIdx]?.id];
+    if (player && typeof player.getCurrentTime === 'function') {
+      e.preventDefault();
+      if (e.key === 'ArrowLeft')  player.seekTo(player.getCurrentTime() - 5,  true);
+      if (e.key === 'ArrowRight') player.seekTo(player.getCurrentTime() + 5,  true);
+      if (e.key === 'j')          player.seekTo(player.getCurrentTime() - 10, true);
+      if (e.key === 'l')          player.seekTo(player.getCurrentTime() + 10, true);
+      if (e.key === 'ArrowUp')    player.setVolume(Math.min(100, player.getVolume() + 10));
+      if (e.key === 'ArrowDown')  player.setVolume(Math.max(0,   player.getVolume() - 10));
+      if (e.key === 'k' || e.key === ' ') {
+        player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo();
+      }
+    }
+  }
 });
 
 // Analytics Functions
