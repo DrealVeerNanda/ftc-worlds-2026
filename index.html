@@ -523,19 +523,21 @@ async function fetchLiveStats() {
       
       let rank = "N/A";
       let rp = "N/A";
+      let cmpEventCode = null;
       if (d.events) {
         const cmpEvent = d.events.find(e => e.eventCode && e.eventCode.startsWith('FTCCMP') && e.stats && e.stats.rank);
         if (cmpEvent && cmpEvent.stats) {
           rank = cmpEvent.stats.rank;
           rp = cmpEvent.stats.rp;
+          cmpEventCode = cmpEvent.eventCode;
         }
       }
-      
+
       let pastMatches = [];
       let wins = 0, losses = 0, ties = 0;
-      
+
       if (d.matches && d.matches.length > 0) {
-        const eventMatches = d.matches.filter(m => m.eventCode && m.eventCode.startsWith('FTCCMP'));
+        const eventMatches = d.matches.filter(m => cmpEventCode ? m.eventCode === cmpEventCode : (m.eventCode && m.eventCode.startsWith('FTCCMP')));
         
         eventMatches.forEach(mp => {
           const match = mp.match;
