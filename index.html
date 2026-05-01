@@ -412,13 +412,28 @@ function setLayout(cls, btn) {
 
 // When returning to this tab, iframes steal focus and swallow keyboard events.
 // Reclaim focus on visibility change and on window focus so hotkeys keep working.
+// Also seek all players to the live edge so streams aren't behind.
 function reclaimFocus() {
   if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
     document.activeElement.blur();
   }
   window.focus();
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden) reclaimFocus(); });
+
+function seekAllToLive() {
+  Object.values(players).forEach(player => {
+    try {
+      if (typeof player.getDuration === 'function' && typeof player.seekTo === 'function') {
+        const duration = player.getDuration();
+        if (duration > 0) player.seekTo(duration, true);
+      }
+    } catch(e) {}
+  });
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { reclaimFocus(); seekAllToLive(); }
+});
 window.addEventListener('focus', reclaimFocus);
 
 document.addEventListener('keydown', e => {
