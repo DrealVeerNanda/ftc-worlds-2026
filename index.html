@@ -474,11 +474,13 @@ async function fetchLiveStats() {
       batchQuery += '}';
       
       try {
+        const batchController = new AbortController();
+        setTimeout(() => batchController.abort(), 8000);
         const res = await fetch("https://api.ftcscout.org/graphql", {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: batchQuery }),
-          signal: controller.signal
+          signal: batchController.signal
         });
         const batchData = await res.json();
         if (batchData.data) {
@@ -544,7 +546,7 @@ async function fetchLiveStats() {
           let scoreStr = "Pending";
           let isPast = false;
           let winProb = 50;
-          let pred = "N/A";
+          let pred = "TIE";
           
           if (match.hasBeenPlayed && match.scores) {
             let ourScore = ourAlliance === 'Red' ? match.scores.red?.totalPoints : match.scores.blue?.totalPoints;
@@ -562,6 +564,7 @@ async function fetchLiveStats() {
             const teammateOpr = oprDict[teammate] || 0;
             const opp1Opr = oprDict[opp1] || 0;
             const opp2Opr = oprDict[opp2] || 0;
+            console.log(`Match ${match.description}: us=${ourOpr.toFixed(1)} mate=${teammateOpr.toFixed(1)} opp1=${opp1Opr.toFixed(1)} opp2=${opp2Opr.toFixed(1)} (team${teams[idx]} vs ${teammate},${opp1},${opp2})`);
             
             const ourAllianceScore = ourOpr + teammateOpr;
             const oppAllianceScore = opp1Opr + opp2Opr;
