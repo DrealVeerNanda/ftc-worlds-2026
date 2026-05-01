@@ -444,19 +444,68 @@ async function fetchLiveStats() {
     const results = await Promise.all(teams.map(t => fetchTeam(t).catch(e => null)));
     
     let validResults = 0;
+    
+    // Pass 1: Collect all unique team numbers needed for predictions
+    const uniqueTeams = new Set();
+    results.forEach(d => {
+      if (!d || !d.matches) return;
+      validResults++;
+      const eventMatches = d.matches.filter(m => m.eventCode && m.eventCode.startsWith('FTCCMP'));
+      eventMatches.forEach(mp => {
+        if (mp.match && !mp.match.hasBeenPlayed && mp.match.teams) {
+          mp.match.teams.forEach(t => uniqueTeams.add(t.teamNumber));
+        }
+      });
+    });
+    
+    if (validResults === 0) {
+      throw new Error("All API requests failed or returned empty data.");
+    }
+    
+    // Pass 2: Batch fetch OPRs for all teams in upcoming matches
+    const oprDict = {};
+    if (uniqueTeams.size > 0) {
+      const teamsArr = Array.from(uniqueTeams);
+      // Batch up to 100 teams per query to avoid massive payloads, but usually there are < 50
+      let batchQuery = 'query { ';
+      teamsArr.forEach(t => {
+        batchQuery += `t${t}: teamByNumber(number: ${t}) { quickStats(season: 2025) { tot { value } } } `;
+      });
+      batchQuery += '}';
+      
+      try {
+        const res = await fetch("https://api.ftcscout.org/graphql", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: batchQuery }),
+          signal: controller.signal
+        });
+        const batchData = await res.json();
+        if (batchData.data) {
+          for (const key in batchData.data) {
+            const teamNum = parseInt(key.substring(1));
+            const qs = batchData.data[key]?.quickStats;
+            oprDict[teamNum] = qs?.tot?.value || 0;
+          }
+        }
+      } catch(e) {
+        console.warn("Failed to batch fetch opponent OPRs", e);
+      }
+    }
+    
+    // Pass 3: Process results and calculate predictions
     results.forEach((d, idx) => {
       if (!d) return;
-      validResults++;
       
       let opr = d.quickStats?.tot?.value || 0;
       let auto = d.quickStats?.auto?.value || 0;
       let dc = d.quickStats?.dc?.value || 0;
       let eg = d.quickStats?.eg?.value || 0;
+      oprDict[teams[idx]] = opr; // Ensure our team's OPR is perfectly tracked
       
       let rank = "N/A";
       let rp = "N/A";
       if (d.events) {
-        // Find the first FTCCMP event that actually has stats (e.g. FTCCMP1FRAN)
         const cmpEvent = d.events.find(e => e.eventCode && e.eventCode.startsWith('FTCCMP') && e.stats && e.stats.rank);
         if (cmpEvent && cmpEvent.stats) {
           rank = cmpEvent.stats.rank;
@@ -468,7 +517,6 @@ async function fetchLiveStats() {
       let wins = 0, losses = 0, ties = 0;
       
       if (d.matches && d.matches.length > 0) {
-        // Filter matches to only World Championship events (starts with FTCCMP)
         const eventMatches = d.matches.filter(m => m.eventCode && m.eventCode.startsWith('FTCCMP'));
         
         eventMatches.forEach(mp => {
@@ -477,14 +525,16 @@ async function fetchLiveStats() {
           
           let ourAlliance = null;
           let opp1 = null, opp2 = null;
+          let teammate = null;
           
           if (match.teams) {
             const ourTeam = match.teams.find(t => t.teamNumber === teams[idx]);
             if (ourTeam) ourAlliance = ourTeam.alliance;
             
             match.teams.forEach(t => {
-              if (t.teamNumber !== teams[idx] && t.alliance !== ourAlliance) {
-                if (!opp1) opp1 = t.teamNumber;
+              if (t.teamNumber !== teams[idx]) {
+                if (t.alliance === ourAlliance) teammate = t.teamNumber;
+                else if (!opp1) opp1 = t.teamNumber;
                 else opp2 = t.teamNumber;
               }
             });
@@ -493,6 +543,8 @@ async function fetchLiveStats() {
           let result = "UPCOMING";
           let scoreStr = "Pending";
           let isPast = false;
+          let winProb = 50;
+          let pred = "N/A";
           
           if (match.hasBeenPlayed && match.scores) {
             let ourScore = ourAlliance === 'Red' ? match.scores.red?.totalPoints : match.scores.blue?.totalPoints;
@@ -504,6 +556,23 @@ async function fetchLiveStats() {
             
             scoreStr = `${ourScore}-${theirScore}`;
             isPast = true;
+          } else {
+            // Calculate predictions based on OPR
+            const ourOpr = oprDict[teams[idx]] || 0;
+            const teammateOpr = oprDict[teammate] || 0;
+            const opp1Opr = oprDict[opp1] || 0;
+            const opp2Opr = oprDict[opp2] || 0;
+            
+            const ourAllianceScore = ourOpr + teammateOpr;
+            const oppAllianceScore = opp1Opr + opp2Opr;
+            const totalScore = ourAllianceScore + oppAllianceScore;
+            
+            if (totalScore > 0) {
+              winProb = Math.round((ourAllianceScore / totalScore) * 100);
+            }
+            if (winProb > 50) pred = "WIN";
+            else if (winProb < 50) pred = "LOSS";
+            else pred = "TIE";
           }
           
           pastMatches.push({
@@ -512,8 +581,8 @@ async function fetchLiveStats() {
             isPast: isPast,
             result: result,
             score: scoreStr,
-            winProb: isPast ? null : 50, // Dummy prob for UI
-            pred: isPast ? null : "N/A",
+            winProb: isPast ? null : winProb,
+            pred: isPast ? null : pred,
             opp1: opp1 || 'N/A',
             opp2: opp2 || 'N/A'
           });
@@ -531,10 +600,6 @@ async function fetchLiveStats() {
       // Override matches completely with API data
       TEAMS_DATA[idx].matches = pastMatches;
     });
-    
-    if (validResults === 0) {
-      throw new Error("All API requests failed or returned empty data.");
-    }
     
     hasLiveStats = true;
   } catch(e) {
